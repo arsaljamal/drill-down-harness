@@ -1,0 +1,21 @@
+docs/design.md
+  s_6208c722798bf1::t_f0a8fa3e14df55 3,37,87,89-161,163-167,169,171,176-183
+README.md
+  s_6208c722798bf1::t_793b820bbca0e7 59-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fda200e5d525fe35cb49889ab1e16d205cb2bed1",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
