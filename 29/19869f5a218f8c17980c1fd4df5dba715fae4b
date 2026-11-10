@@ -1,0 +1,44 @@
+.github/workflows/release.yml
+  s_6208c722798bf1::t_60fc5c5ef55a01 1-34
+tools/multi.go
+  s_6208c722798bf1::t_939ed9d1c9f82c 1-6,8-56,58,60,63-105,107-108
+  s_6208c722798bf1::t_699f7715652086 7,57,59,61-62,106
+Dockerfile
+  s_6208c722798bf1::t_30e79646225c4c 1-2,4-5
+  s_6208c722798bf1::t_15ec734b7936d9 3
+tools/multi_test.go
+  s_6208c722798bf1::t_a040c7cc68a59c 1-89
+cmd/drill/main.go
+  s_6208c722798bf1::t_a99a721f8cf3f7 1,3-5,9,11-12,15-16,30,36-43,45-57,60-72,76-130,148-156,162-163,184-224,238,245,253,265
+config/config.go
+  s_6208c722798bf1::t_204a7d3e2ea344 1-5,7-79,81-145,147-155
+  s_6208c722798bf1::t_699f7715652086 6,80
+  s_6208c722798bf1::t_62ee425815d747 146
+config/config_test.go
+  s_6208c722798bf1::t_196b76ce90d80d 1-72
+.goreleaser.yaml
+  s_6208c722798bf1::t_df7bbee72ca440 1-24,40-42
+  s_6208c722798bf1::t_d6cf8d4acb3a8a 25-39
+README.md
+  s_6208c722798bf1::t_600e5854468147 19-51,86-87
+go.mod
+  s_6208c722798bf1::t_dd98914972a08b 12
+go.sum
+  s_6208c722798bf1::t_5f2af4e6695c75 70-73,80-81,150-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2919869f5a218f8c17980c1fd4df5dba715fae4b",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
