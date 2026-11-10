@@ -1,3 +1,2 @@
-{"scenario":"Scenario-1","reward":1,"stop":"done","turns":3,"tokens_in":0,"tokens_out":0,"cost_usd":0,"seconds":315.054185041,"answered":true}
-{"scenario":"Scenario-3","reward":0,"stop":"","turns":0,"tokens_in":0,"tokens_out":0,"cost_usd":0,"seconds":40.463758458,"answered":false,"error":"oracle: no root-cause groups in answer key"}
-{"scenario":"Scenario-3","reward":1,"stop":"done","turns":3,"tokens_in":0,"tokens_out":0,"cost_usd":0,"seconds":33.152098375,"answered":true}
+{"scenario": "Scenario-1", "reward": 1, "stop": "done", "turns": 3, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0, "seconds": 315.054185041, "answered": true}
+{"scenario": "Scenario-3", "reward": 1, "stop": "done", "turns": 3, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0, "seconds": 33.152098375, "answered": true}
