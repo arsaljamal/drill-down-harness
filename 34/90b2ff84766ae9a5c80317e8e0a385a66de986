@@ -1,0 +1,25 @@
+model/paced.go
+  s_6208c722798bf1::t_9d97c0ffd9cb05 1-38
+model/paced_test.go
+  s_6208c722798bf1::t_9d97c0ffd9cb05 1-29
+cmd/drill/main.go
+  s_6208c722798bf1::t_9d97c0ffd9cb05 314-315,349-354
+model/openai.go
+  s_6208c722798bf1::t_9d97c0ffd9cb05 26-28,72,93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3490b2ff84766ae9a5c80317e8e0a385a66de986",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
