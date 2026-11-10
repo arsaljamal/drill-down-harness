@@ -1,0 +1,16 @@
+README.md
+  h_371447aadb4730 1-21
+docs/design.md
+  h_371447aadb4730 1-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fbe13b6bad6b25a70cf1e800ca68798400e106e8",
+  "prompts": {},
+  "humans": {
+    "h_371447aadb4730": {
+      "author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
