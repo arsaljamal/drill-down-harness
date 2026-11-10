@@ -16,6 +16,39 @@ Underneath is a reliability-first agent harness in Go: any model, tools through 
 | **Drill down** | Lists every way traffic reaches the endpoint, splits the spike, rules suspects out with evidence. |
 | **Report** | Reproduction steps and an incident report where every number links to its query. |
 
+## Install
+
+Release downloads for macOS, Linux and Windows, and a Docker image (`ghcr.io/arsaljamal/drill`), are published from the first tagged release. Until then:
+
+```sh
+go install github.com/arsaljamal/drill-down-harness/cmd/drill@latest
+```
+
+## Configure
+
+```sh
+drill init      # writes an example drill.yaml
+```
+
+`drill.yaml` holds the model, the MCP servers (any language; stdio `command` or HTTP `url`), run limits and the approval rule for unsafe tools. `${VAR}` values are read from your environment, so tokens never live in the file. A typo in a setting is an error, not silently ignored. Command-line flags override the file.
+
+```yaml
+version: 1
+model: ollama/qwen3
+limits: { max_turns: 40, max_tokens: 400000, timeout: 15m }
+mcp_servers:
+  grafana:
+    command: mcp-grafana
+    env: { GRAFANA_URL: "http://localhost:3000", GRAFANA_SERVICE_ACCOUNT_TOKEN: "${GRAFANA_TOKEN}" }
+  github:
+    url: https://api.githubcopilot.com/mcp/
+    headers: { Authorization: "Bearer ${GITHUB_TOKEN}" }
+approvals:
+  unsafe: ask     # ask | deny | allow
+```
+
+With more than one server, tools are named `<server>__<tool>`. Unsafe tools (no read-only or idempotent annotation) ask for a yes on the terminal; with no terminal (CI, cron) the answer is no.
+
 ## Try the harness
 
 Runs on any model. With [Ollama](https://ollama.com) it runs on your own machine and needs no API key:
@@ -50,7 +83,8 @@ Add `--trace` to print OpenTelemetry spans for the run, each turn, each model ca
 |---|---|
 | `agent` | Provider-neutral types and the agent loop, with stop reasons: done, max_turns, token_budget, timeout, stuck, model_error, tools_error, cancelled |
 | `model` | Two adapters: Claude, and any OpenAI-compatible server. Retries are owned and traced by the harness |
-| `tools` | MCP toolbox on the official Go SDK; classifies tools as read-only, idempotent or unsafe from MCP annotations |
+| `tools` | MCP toolbox on the official Go SDK; classifies tools as read-only, idempotent or unsafe; combines several servers and applies the approval rule |
+| `config` | Loads and checks `drill.yaml` |
 | `retry` | Exponential backoff with full jitter |
 | `examples/demoserver` | A tiny MCP server to try the harness against |
 

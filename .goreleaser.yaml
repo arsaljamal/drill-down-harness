@@ -1,0 +1,42 @@
+version: 2
+
+project_name: drill
+
+builds:
+  - id: drill
+    main: ./cmd/drill
+    binary: drill
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+dockers:
+  - image_templates: ["ghcr.io/arsaljamal/drill:{{ .Version }}-amd64"]
+    use: buildx
+    goarch: amd64
+    build_flag_templates: ["--platform=linux/amd64"]
+  - image_templates: ["ghcr.io/arsaljamal/drill:{{ .Version }}-arm64"]
+    use: buildx
+    goarch: arm64
+    build_flag_templates: ["--platform=linux/arm64"]
+
+docker_manifests:
+  - name_template: "ghcr.io/arsaljamal/drill:{{ .Version }}"
+    image_templates: ["ghcr.io/arsaljamal/drill:{{ .Version }}-amd64", "ghcr.io/arsaljamal/drill:{{ .Version }}-arm64"]
+  - name_template: "ghcr.io/arsaljamal/drill:latest"
+    image_templates: ["ghcr.io/arsaljamal/drill:{{ .Version }}-amd64", "ghcr.io/arsaljamal/drill:{{ .Version }}-arm64"]
+
+changelog:
+  sort: asc
