@@ -56,6 +56,8 @@ Add `--trace` to print OpenTelemetry spans for the run, each turn, each model ca
 
 ## Principles
 
+- **Go core, language-free edges:** you never need Go to run it, connect systems (MCP in any language), describe your product (YAML and Markdown playbooks) or trigger it (HTTP and webhooks). Release binaries and a Docker image are on the roadmap.
+
 - **Evidence or it didn't happen:** every finding cites the tool call behind it.
 - **Read freely, act carefully:** investigation is read-only; anything that changes production waits for approval.
 - **Say what you can't see:** missing access is reported as a gap, never guessed.

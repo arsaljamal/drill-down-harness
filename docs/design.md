@@ -1,6 +1,6 @@
 # Drill Down Harness: design
 
-Status: draft v0.2 (2026-11-10). Author: Arsal Jamal.
+Status: draft v0.3 (2026-11-10). Author: Arsal Jamal.
 
 The Drill Down Harness is an on-call investigator. When a page fires in the middle of the night ("traffic on /refresh doubled"), you tell it to find out what is happening. It already knows how your product fits together, so it checks the right systems, contains the damage once you approve, drills down to the source with evidence, and writes the report.
 
@@ -34,6 +34,7 @@ Each step means jumping between Grafana, Loki, Sentry, the CDN, the gateway, the
 - **Say what you can't see.** Missing access (for example a push provider console that needs owner rights) is reported as an open gap, never filled with a guess.
 - **Any model.** The harness talks to models through one interface: Claude natively, and anything OpenAI-compatible (OpenAI, Gemini, OpenRouter, Groq, or a local model through Ollama with no API key).
 - **Plug in, don't rewrite.** Systems are reached through MCP servers, preferring the official ones (Grafana, Sentry, Cloudflare, GitHub, Kubernetes).
+- **Go core, language-free edges.** The engine is Go. Nobody who runs it, connects a system to it, describes their product to it or triggers it needs Go: those edges are a downloaded binary, MCP (any language), YAML, Markdown, HTTP and JSON. Only people changing the engine itself write Go.
 
 ## 4. Architecture
 
@@ -83,37 +84,103 @@ For each investigation: a list of suspects, each with status (open, ruled out, f
 - **Dead-letter store** for steps that fail permanently, with the reason and a dry-run replay.
 - **Context management:** long log and metric results are summarised before they reach the model; the journal keeps the full data.
 
-## 5. Evals: a demo company we break on purpose
+### 4.5 Language-free edges
 
-The public version runs against a small company we build ourselves, in Docker Compose:
-- an edge gateway with rate limiting (stands in for a CDN);
-- an auth service with `/login` and `/refresh`, plus two or three other services;
-- simulated clients: Android, iOS, web, a partner, a cron job;
-- Prometheus, Loki, Tempo and Grafana.
+| Who | What they touch | Format |
+|---|---|---|
+| On-call engineer | `drill` binary (macOS, Linux, Windows), Homebrew, Docker image | built by GoReleaser on every tag; no Go toolchain needed |
+| Team connecting a system | MCP servers over stdio or HTTP | any language; official servers preferred; our demo connectors include Python ones |
+| Team describing its product | `drill.yaml` and `playbooks/*.md` | YAML and Markdown |
+| Alerting and chat tools | HTTP API and alert webhook | JSON in, JSON + report out |
+| Other tools reading results | product map, hypothesis board, report | versioned JSON schemas |
 
-Fault scenarios, each with a known root cause:
-1. background-wake storm: a push makes idle Android clients wake and refresh at once;
-2. retry storm from one bad app version;
-3. bot flood from one network;
-4. misconfigured cron job running every minute;
-5. bad deploy raising latency;
-6. cache expiry causing a thundering herd.
+**`drill.yaml`** replaces long command-line flags:
 
-`drill eval` runs each scenario, scores whether the right cause was found, whether every claim had evidence, time to answer and cost, and fails CI on a regression. No real company data is used anywhere.
+```yaml
+version: 1
+model: anthropic/claude-sonnet-5-5      # or ollama/qwen3, openai/<model>, ...
+api_key_env: ANTHROPIC_API_KEY          # the key itself is never in the file
+limits: { max_turns: 40, max_tokens: 400000, timeout: 15m }
+mcp_servers:
+  grafana: { command: "mcp-grafana", env: { GRAFANA_URL: "http://localhost:3000" } }
+  github:  { url: "https://api.githubcopilot.com/mcp/" }
+approvals:
+  unsafe: ask          # ask | deny
+  notify: cli          # cli first; chat and phone later
+playbooks: ./playbooks
+```
 
-## 6. Roadmap
+**Playbooks** are Markdown files the investigator reads as hints, matched by alert name or endpoint:
+
+```markdown
+---
+match: { alert: "TrafficSpike", endpoint: "/auth/refresh" }
+---
+Check first: background vs foreground traffic, platform split, recent push campaigns.
+Known benign cause: nightly token refresh from the partner API at 02:00.
+```
+
+**HTTP trigger:** `drill serve` exposes `POST /v1/investigations` (start one, from a webhook or by hand), `GET /v1/investigations/{id}` (status, board, report) and `POST /v1/approvals/{id}` (approve or deny a proposed action). Alertmanager and Grafana alert webhooks are accepted directly.
+
+**Versioned outputs:** `map.v1.json`, `board.v1.json` and `report.v1.json` are published as JSON Schemas in `schemas/`, so other tools can read results in any language.
+
+## 5. Landscape: what others do, and the gaps we target
+
+Checked 2026-11-10.
+
+| Group | Examples | What they do well | Limit |
+|---|---|---|---|
+| Closed AI SRE agents | Resolve AI, Traversal, Cleric, Neubird | parallel hypotheses, causal search, operational memory | data goes to the vendor; accuracy claims hard to verify |
+| Observability incumbents | Datadog Bits AI SRE, Dynatrace, New Relic, AWS DevOps Agent | low friction on their own data, audit trails | reasoning stops at their own data |
+| Open-source harnesses | HolmesGPT (CNCF sandbox, Python), K8sGPT, OpenSRE (Python, Claude Agent SDK), Aurora (Apache 2.0) | open, self-hosted, MCP and runbooks, some human-gated remediation | mostly Kubernetes and error/latency faults; few reproducible accuracy numbers |
+
+What research says agents get wrong (Kim et al., 2026, "Why do AI agents systematically fail at cloud root cause analysis?"; ORCA-bench, 2026):
+- **Hallucinated interpretation** of data (about 71% of failed runs) and **symptom taken as cause** (about 40%).
+- **Incomplete exploration**: whole components or signal types skipped (about 64%); metrics used, logs and traces ignored.
+- **Bad queries**: 26-40% of telemetry queries return nothing or error.
+- **Timestamp and timezone mistakes** (about 23%).
+- **Concurrent faults**: agents stop at the first cause.
+- **Source code under-used** even though it helps.
+- Best models reach only 10-25% accuracy on harder on-call tasks; prompting alone does not fix this, the framework has to.
+
+How the Drill Down Harness answers each one, in the framework rather than the prompt:
+
+| Gap | Answer |
+|---|---|
+| Hallucination, symptom-as-cause | Hypothesis board: a cause is accepted only if it fits every test, and each test result is a cited tool call. A separate verify step re-reads the evidence before the report. |
+| Incomplete exploration | The product map gives a coverage checklist: every entry point and every signal type (metrics, logs, traces, errors, changes) for the affected endpoint must be checked or marked unavailable. |
+| Bad queries | Query helpers built from discovered label values and log fields; empty results are flagged, retried with a corrected query, and counted. |
+| Timestamps | All tool inputs and outputs normalised to UTC by the harness, never by the model. |
+| Concurrent faults | The board allows more than one "fits" verdict and asks whether the fits explain the whole spike. |
+| Code under-used | The map links endpoints to repos and handlers, so reading code is a planned step. |
+| "Why is traffic up?" | Most tools focus on errors, latency and Kubernetes faults. We also target traffic-origin questions: which client, version, network, partner, job or campaign is sending it. |
+| Unverifiable claims | Every score is reproducible from the public eval suite. |
+
+## 6. Testing
+
+Five layers, cheapest first:
+
+1. **Unit tests** (today: 20): loop, stop reasons, retries, adapters, MCP toolbox. Run on every push.
+2. **Replay tests:** recorded tool responses plus a scripted model make full investigations deterministic and free. They check harness rules: no verdict without evidence, coverage checklist enforced, UTC normalisation, approvals required for unsafe tools.
+3. **Scenario evals on the OpenTelemetry Demo** (the "Astronomy Shop": many services in many languages, an Envoy front proxy, a Locust load generator, and built-in fault flags through flagd). We reuse it instead of building our own demo company, and add our own traffic-origin scenarios on top through the load generator: background-wake storm, retry storm from one client version, bot flood from one network, cron misconfiguration, campaign spike. Each scenario has a known root cause.
+4. **Public benchmarks:** run a subset of ORCA-bench (built on the same OpenTelemetry Demo) and RCAEval, and publish the numbers, good or bad.
+5. **Dogfooding:** run it against personal and demo systems only; never against employer systems from this repo.
+
+What we measure per run: root cause correct, all causes found (for concurrent faults), every claim cited, hallucinated claims, coverage of the checklist, empty-query rate, time to triage, time to cause, tokens and cost, model used. `drill eval` prints a table and fails CI if accuracy or citation rate drops against the last baseline. Expensive eval runs are nightly, not on every push; a local model through Ollama keeps a cheap smoke run on every push.
+
+## 7. Roadmap
 
 | Version | Scope | Target |
 |---|---|---|
 | v0.1 | Harness core: loop, Claude and OpenAI-compatible models, MCP tools, limits, retries, tracing | done 2026-11-10 |
-| v0.2 | Demo company in Docker Compose with Grafana stack; first two fault scenarios | 2026-11-24 |
-| v0.3 | Product map: discovery runs, graph store, `drill map` | 2026-12-01 |
-| v0.4 | Triage and drill down: hypothesis board, evidence rules, `drill investigate` | 2026-12-08 |
-| v0.5 | Contain: policy gate, approvals, journal, resume, dead-letter store | 2026-12-15 |
-| v0.6 | Report and evals: incident report, runbook entry, `drill eval` in CI over all six scenarios | 2026-12-22 |
-| later | Alert webhook trigger, Rust sandbox for reproduction scripts, more connectors | 2027 |
+| v0.2 | Language-free edges: `drill.yaml`, release binaries and Docker image, versioned JSON schemas; replay-test framework | 2026-11-24 |
+| v0.3 | Eval rig: OpenTelemetry Demo with Grafana stack, two flagd faults and two traffic-origin scenarios, `drill eval` | 2026-12-01 |
+| v0.4 | Product map (`drill map`) and coverage checklist | 2026-12-08 |
+| v0.5 | Investigate: triage, hypothesis board, evidence rules, verify step, playbooks | 2026-12-15 |
+| v0.6 | Contain and serve: approvals, journal, resume, `drill serve` with webhook trigger; first published eval numbers | 2026-12-22 |
+| later | Report polish, ORCA-bench subset, chat/phone approvals, Rust sandbox for reproduction scripts | 2027 |
 
-## 7. Open questions
+## 8. Open questions
 - How is the map kept fresh without expensive full rediscovery? Incremental refresh per source?
 - What is the minimum read access a team must grant for useful results, and how is it described to them?
 - Containment approvals at 03:00: phone notification, chat message, or CLI only at first?
