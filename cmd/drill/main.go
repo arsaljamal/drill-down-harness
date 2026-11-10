@@ -311,6 +311,8 @@ func bench(args []string) int {
 	timeout := fset.Duration("timeout", 45*time.Minute, "time limit per task")
 	priceIn := fset.Float64("price-in", 0, "USD per million input tokens, for cost estimates")
 	priceOut := fset.Float64("price-out", 0, "USD per million output tokens, for cost estimates")
+	rpm := fset.Float64("rpm", 0, "max model requests per minute, e.g. 5 for a free tier (0: no pacing)")
+	effort := fset.String("reasoning-effort", "", "low | medium | high, for OpenAI-compatible models that support it")
 	keyFile := fset.String("api-key-file", "", "read the API key from this file (keeps it out of your shell history)")
 	check := fset.Bool("check", false, "setup check: submit the answer key instead of calling a model (should score 1.0)")
 	fset.Parse(args[1:])
@@ -343,6 +345,12 @@ func bench(args []string) int {
 	} else if m, retryable, err = pickModel(*modelFlag, *baseURL, *keyEnv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
+	}
+	if oa, ok := m.(*model.OpenAICompatible); ok && *effort != "" {
+		oa.ReasoningEffort = *effort
+	}
+	if *rpm > 0 && m != nil {
+		m = &model.Paced{Model: m, Every: time.Duration(float64(time.Minute) / *rpm)}
 	}
 	if *out == "" {
 		*out = filepath.Join("bench-results", "itbench", time.Now().UTC().Format("20060102-150405"))

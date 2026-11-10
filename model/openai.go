@@ -23,6 +23,9 @@ type OpenAICompatible struct {
 	Model   string
 	APIKey  string // empty for local servers such as Ollama
 	HTTP    *http.Client
+
+	// ReasoningEffort, if set, is sent as reasoning_effort (low, medium, high).
+	ReasoningEffort string
 }
 
 // HTTPError is a non-2xx answer from the server.
@@ -66,6 +69,7 @@ type oaRequest struct {
 	Messages  []oaMessage `json:"messages"`
 	Tools     []oaTool    `json:"tools,omitempty"`
 	MaxTokens int64       `json:"max_tokens,omitempty"`
+	Reasoning string      `json:"reasoning_effort,omitempty"`
 }
 
 type oaResponse struct {
@@ -86,6 +90,7 @@ func (o *OpenAICompatible) Generate(ctx context.Context, req agent.ModelRequest)
 		Messages:  toOAMessages(req.System, req.Messages),
 		Tools:     toOATools(req.Tools),
 		MaxTokens: req.MaxTokens,
+		Reasoning: o.ReasoningEffort,
 	})
 	if err != nil {
 		return agent.ModelReply{}, err
