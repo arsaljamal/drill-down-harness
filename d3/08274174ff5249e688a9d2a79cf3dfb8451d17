@@ -1,0 +1,63 @@
+bench/itbench/itbench.go
+  s_6208c722798bf1::t_43e7d530bce46c 367-374,433-436
+  s_6208c722798bf1::t_703ad223cd5572 1-46,64-67,78-160,164,167,169-170,172-366,375-432,437-493
+  s_6208c722798bf1::t_ad9418b42b5dda 47-61,63,68-77
+  s_6208c722798bf1::t_918bfacd18d72a 62
+  s_6208c722798bf1::t_f976302729f524 161-163,165-166,168,171
+agent/compact.go
+  s_6208c722798bf1::t_2f63c43fee5ffe 1-30
+bench/itbench/grader/matching.py
+  s_6208c722798bf1::t_3c9bca59a261df 1-435
+bench-results/itbench/setup-check/Scenario-3/answer.json
+  s_6208c722798bf1::t_f2f70015d8247e 1
+bench-results/itbench/setup-check/Scenario-1/grader.log
+  s_6208c722798bf1::t_43e7d530bce46c 1-12
+bench/itbench/prompt.md
+  s_6208c722798bf1::t_3c9bca59a261df 1-105
+bench-results/itbench/setup-check/Scenario-3/grader.log
+  s_6208c722798bf1::t_f2f70015d8247e 1-12
+agent/compact_test.go
+  s_6208c722798bf1::t_2f63c43fee5ffe 1-24
+agent/runner.go
+  s_6208c722798bf1::t_2f63c43fee5ffe 60-63,141-145
+bench-results/itbench/setup-check/Scenario-1/answer.json
+  s_6208c722798bf1::t_df9146338f7fd2 1
+bench/itbench/grader/test.sh
+  s_6208c722798bf1::t_3c9bca59a261df 1-12
+bench/itbench/oracle.go
+  s_6208c722798bf1::t_f2f70015d8247e 29-38,46,49,55,59,62,65,79
+  s_6208c722798bf1::t_37ce5c2542e0fe 1-28,39-45,47-48,50-54,56-58,60-61,63-64,66-78,80-81
+bench/itbench/grader/SOURCE
+  s_6208c722798bf1::t_3c9bca59a261df 1
+cmd/drill/main.go
+  s_6208c722798bf1::t_43e7d530bce46c 305,330-331,336
+  s_6208c722798bf1::t_ad9418b42b5dda 5,21,32,45,58-59,292-304,306-313,315-316,323-329,332-335,337-352,354-368
+  s_6208c722798bf1::t_5ac7c2c889b8f3 314,317-322,353,369
+.gitignore
+  s_6208c722798bf1::t_ad9418b42b5dda 4-6
+bench-results/itbench/setup-check/results.jsonl
+  s_6208c722798bf1::t_f2f70015d8247e 3
+  s_6208c722798bf1::t_43e7d530bce46c 1-2
+bench/itbench/grader/grade.py
+  s_6208c722798bf1::t_3c9bca59a261df 1-612
+README.md
+  s_6208c722798bf1::t_510ea3d4226228 80-91,100
+bench/itbench/grader/README.md
+  s_6208c722798bf1::t_ea899adb9d7bcf 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d308274174ff5249e688a9d2a79cf3dfb8451d17",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
