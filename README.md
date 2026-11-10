@@ -77,6 +77,18 @@ go run ./cmd/drill run --model anthropic/claude-sonnet-5-5 --mcp "go run ./examp
 
 Add `--trace` to print OpenTelemetry spans for the run, each turn, each model call and each tool call.
 
+## Benchmark: ITBench-AA
+
+`drill bench itbench` scores the harness on the 40 public ITBench-AA SRE tasks (offline Kubernetes incident snapshots), using the official task prompt and grader, so results are comparable with the [ITBench-AA leaderboard](https://artificialanalysis.ai/evaluations/itbench-aa).
+
+```sh
+drill bench itbench --check --scenarios Scenario-1        # free setup check: submits the answer key, must score 1.0
+drill bench itbench --model anthropic/claude-sonnet-5-5 \
+  --limit 5 --stop-below 0.3 --min-tasks 5 --price-in 3 --price-out 15
+```
+
+Tasks run one at a time: download the snapshot, investigate inside a Docker sandbox (data read-only, no network, the answer key never inside), grade, delete the data. `--stop-below` stops early if the running score falls under a threshold. Results go to `bench-results/itbench/<time>/results.jsonl`.
+
 ## Layout
 
 | Package | What it does |
@@ -85,6 +97,7 @@ Add `--trace` to print OpenTelemetry spans for the run, each turn, each model ca
 | `model` | Two adapters: Claude, and any OpenAI-compatible server. Retries are owned and traced by the harness |
 | `tools` | MCP toolbox on the official Go SDK; classifies tools as read-only, idempotent or unsafe; combines several servers and applies the approval rule |
 | `config` | Loads and checks `drill.yaml` |
+| `bench/itbench` | ITBench-AA runner: download, sandbox, official grader, early stop |
 | `retry` | Exponential backoff with full jitter |
 | `examples/demoserver` | A tiny MCP server to try the harness against |
 

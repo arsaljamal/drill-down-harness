@@ -1,3 +1,6 @@
 /drill
 /bin/
 *.db
+/bench-results/*/*/*/transcript.json
+/bench-results/*/*/*/workspace/
+/bench-results/*/*/*/logs/

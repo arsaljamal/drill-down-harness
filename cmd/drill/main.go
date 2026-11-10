@@ -2,6 +2,7 @@
 //
 //	drill init                 write an example drill.yaml
 //	drill run "<task>"         run a task with the settings in drill.yaml
+//	drill bench itbench [flags]  score the harness on the public ITBench-AA SRE tasks
 //	drill version
 package main
 
@@ -17,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/arsaljamal/drill-down-harness/agent"
+	"github.com/arsaljamal/drill-down-harness/bench/itbench"
 	"github.com/arsaljamal/drill-down-harness/config"
 	"github.com/arsaljamal/drill-down-harness/model"
 	"github.com/arsaljamal/drill-down-harness/retry"
@@ -39,6 +42,7 @@ var version = "dev"
 const usage = `usage:
   drill init                       write an example drill.yaml in this folder
   drill run [flags] "<task>"       run a task (settings from drill.yaml; flags override)
+  drill bench itbench [flags]      score the harness on the public ITBench-AA SRE tasks
   drill version`
 
 func main() {
@@ -51,6 +55,8 @@ func main() {
 		os.Exit(run(os.Args[2:]))
 	case "init":
 		os.Exit(initConfig())
+	case "bench":
+		os.Exit(bench(os.Args[2:]))
 	case "version", "--version", "-v":
 		fmt.Println("drill", version)
 	default:
@@ -282,4 +288,82 @@ func oneLine(s string, max int) string {
 		return s[:max] + "…"
 	}
 	return s
+}
+
+func bench(args []string) int {
+	if len(args) == 0 || args[0] != "itbench" {
+		fmt.Fprintln(os.Stderr, "usage: drill bench itbench [flags]")
+		return 2
+	}
+	fset := flag.NewFlagSet("bench itbench", flag.ExitOnError)
+	modelFlag := fset.String("model", "anthropic/claude-sonnet-5-5", "provider/model")
+	baseURL := fset.String("base-url", "", "OpenAI-compatible server URL")
+	keyEnv := fset.String("api-key-env", "", "environment variable holding the API key")
+	scenarios := fset.String("scenarios", "", "comma-separated scenario IDs, e.g. Scenario-1,Scenario-3 (default: all 40 public ones)")
+	limit := fset.Int("limit", 0, "stop after this many tasks (0: no limit)")
+	out := fset.String("out", "", "results folder (default bench-results/itbench/<time>)")
+	work := fset.String("work", "", "where snapshots are downloaded; must be inside your home folder (default: your cache folder)")
+	keep := fset.Bool("keep", false, "keep snapshot data after each task")
+	stopBelow := fset.Float64("stop-below", 0, "stop early if the running mean reward falls below this (0: never)")
+	minTasks := fset.Int("min-tasks", 5, "tasks to run before the stop-below check applies")
+	maxTurns := fset.Int("max-turns", 100, "model calls per task (the leaderboard uses 100)")
+	maxTokens := fset.Int64("max-tokens", 3_000_000, "token budget per task")
+	timeout := fset.Duration("timeout", 45*time.Minute, "time limit per task")
+	priceIn := fset.Float64("price-in", 0, "USD per million input tokens, for cost estimates")
+	priceOut := fset.Float64("price-out", 0, "USD per million output tokens, for cost estimates")
+	check := fset.Bool("check", false, "setup check: submit the answer key instead of calling a model (should score 1.0)")
+	fset.Parse(args[1:])
+
+	var m agent.Model
+	var retryable func(error) bool
+	var err error
+	if *check {
+		*modelFlag = "answer-key-check"
+	} else if m, retryable, err = pickModel(*modelFlag, *baseURL, *keyEnv); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	if *out == "" {
+		*out = filepath.Join("bench-results", "itbench", time.Now().UTC().Format("20060102-150405"))
+	}
+	if *work == "" {
+		// Under the home folder, which Docker runtimes share by default.
+		cache, err := os.UserCacheDir()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		*work = filepath.Join(cache, "drill", "itbench")
+	}
+	var ids []string
+	for _, id := range strings.Split(*scenarios, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	results, err := itbench.Run(ctx, itbench.Options{
+		Model: m, ModelName: *modelFlag, Retryable: retryable,
+		Scenarios: ids, Limit: *limit, OutDir: *out, WorkDir: *work, Keep: *keep,
+		StopBelow: *stopBelow, MinTasks: *minTasks,
+		MaxTurns: *maxTurns, MaxTokens: *maxTokens, Timeout: *timeout,
+		PriceIn: *priceIn, PriceOut: *priceOut, Oracle: *check,
+		Log: func(f string, a ...any) { fmt.Fprintf(os.Stderr, f+"\n", a...) },
+	})
+	if len(results) > 0 {
+		sum, cost := 0.0, 0.0
+		for _, r := range results {
+			sum += r.Reward
+			cost += r.CostUSD
+		}
+		fmt.Printf("\nITBench-AA (public tasks) · %s · %d task(s) · mean reward %.3f · est. cost $%.2f\nresults: %s\n", *modelFlag, len(results), sum/float64(len(results)), cost, *out)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	return 0
 }

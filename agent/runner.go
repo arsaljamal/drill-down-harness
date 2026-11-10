@@ -57,6 +57,10 @@ type Runner struct {
 
 	// Observe, if set, receives progress events.
 	Observe func(Event)
+
+	// Compact, if set, shapes what the model sees each turn (for example
+	// shortening old tool results). The full history stays in Result.Messages.
+	Compact func([]Message) []Message
 }
 
 // Result is the outcome of a run.
@@ -134,7 +138,11 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 		res.Turns++
 		turnCtx, turnSpan := tracer.Start(ctx, "drill.turn", trace.WithAttributes(attribute.Int("drill.turn", res.Turns)))
 
-		reply, err := r.generate(turnCtx, ModelRequest{System: r.System, Messages: res.Messages, Tools: specs, MaxTokens: maxOut})
+		view := res.Messages
+		if r.Compact != nil {
+			view = r.Compact(view)
+		}
+		reply, err := r.generate(turnCtx, ModelRequest{System: r.System, Messages: view, Tools: specs, MaxTokens: maxOut})
 		if err != nil {
 			turnSpan.RecordError(err)
 			turnSpan.End()
