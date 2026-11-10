@@ -6,10 +6,29 @@ An agent harness in Go, built for reliability: the engine around a language mode
 
 ## Try it
 
+Runs on any model. With [Ollama](https://ollama.com) it runs on your own machine and needs no API key:
+
+```sh
+ollama pull qwen3
+go run ./cmd/keel run --model ollama/qwen3 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
+```
+
+Or use a hosted model (the key is read from the environment, never from a file):
+
 ```sh
 export ANTHROPIC_API_KEY=...
-go run ./cmd/keel run --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
+go run ./cmd/keel run --model anthropic/claude-sonnet-5-5 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
 ```
+
+| `--model` prefix | Talks to | Key |
+|---|---|---|
+| `anthropic/` | Claude Messages API | `ANTHROPIC_API_KEY` |
+| `openai/` | OpenAI | `OPENAI_API_KEY` |
+| `gemini/` | Gemini's OpenAI-compatible endpoint | `GEMINI_API_KEY` |
+| `openrouter/` | OpenRouter | `OPENROUTER_API_KEY` |
+| `groq/` | Groq | `GROQ_API_KEY` |
+| `ollama/`, `lmstudio/` | a local server | none |
+| `compatible/` | any OpenAI-compatible server, with `--base-url` | `--api-key-env` if needed |
 
 Add `--trace` to print OpenTelemetry spans for the run, each turn, each model call and each tool call.
 
@@ -18,7 +37,7 @@ Add `--trace` to print OpenTelemetry spans for the run, each turn, each model ca
 | Package | What it does |
 |---|---|
 | `agent` | Provider-neutral types and the agent loop, with stop reasons: done, max_turns, token_budget, timeout, stuck, model_error, cancelled |
-| `model` | Claude adapter; SDK retries are off so Keel owns and traces every retry |
+| `model` | Two adapters: Claude, and any OpenAI-compatible server. Retries are owned and traced by Keel |
 | `tools` | MCP toolbox on the official Go SDK; classifies tools as read-only, idempotent or unsafe from MCP annotations |
 | `retry` | Exponential backoff with full jitter |
 | `examples/demoserver` | A tiny MCP server to try Keel against |
