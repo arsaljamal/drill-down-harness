@@ -1,0 +1,50 @@
+agent/runner.go
+  s_6208c722798bf1::t_703bfa662bd81e 15,72,93,96-99,135,182,202,209-211,219,229
+agent/types.go
+  s_6208c722798bf1::t_ca7ea9406657c1 1
+docs/design.md
+  s_6208c722798bf1::t_497dd12cbeefd1 1,3,5,7,9,11,13-16,18,20,22-28,30,32-36,38,41-60,63-67,69-73,75,77-78,80-84,86,88-92,94-100,102,104,108-120
+model/anthropic_test.go
+  s_6208c722798bf1::t_703bfa662bd81e 11
+model/anthropic.go
+  s_6208c722798bf1::t_a10f1a76767ae5 1
+  s_6208c722798bf1::t_ca7ea9406657c1 24
+  s_6208c722798bf1::t_703bfa662bd81e 14
+tools/mcp.go
+  s_6208c722798bf1::t_703bfa662bd81e 12
+  s_6208c722798bf1::t_ca7ea9406657c1 1,51
+agent/runner_test.go
+  s_6208c722798bf1::t_703bfa662bd81e 10
+.gitignore
+  s_6208c722798bf1::t_ca7ea9406657c1 1
+examples/demoserver/main.go
+  s_6208c722798bf1::t_a10f1a76767ae5 1
+  s_6208c722798bf1::t_ca7ea9406657c1 25
+model/openai_test.go
+  s_6208c722798bf1::t_703bfa662bd81e 10
+cmd/drill/main.go
+  s_6208c722798bf1::t_ca7ea9406657c1 1-21,26-168
+  s_6208c722798bf1::t_703bfa662bd81e 22-25
+README.md
+  s_6208c722798bf1::t_d0f34d8ad9acb8 1,3,5,7-19,25,32,51-52,55,57,59-61
+go.mod
+  s_6208c722798bf1::t_703bfa662bd81e 1
+model/openai.go
+  s_6208c722798bf1::t_703bfa662bd81e 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "98972513cf98bec9290dd119e39de6a86d4856b5",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
