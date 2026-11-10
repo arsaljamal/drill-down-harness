@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/arsaljamal/keel/agent"
+	"github.com/arsaljamal/drill-down-harness/agent"
 )
 
 // OpenAICompatible talks to any server that implements the OpenAI Chat

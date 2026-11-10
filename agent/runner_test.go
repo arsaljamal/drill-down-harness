@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arsaljamal/keel/retry"
+	"github.com/arsaljamal/drill-down-harness/retry"
 )
 
 // scriptModel replays a fixed list of replies (or errors), one per call.

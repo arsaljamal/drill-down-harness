@@ -1,4 +1,4 @@
-// Package model adapts model APIs to Keel's agent.Model interface.
+// Package model adapts model APIs to the harness's agent.Model interface.
 package model
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/v2"
 	"github.com/anthropics/anthropic-sdk-go/v2/option"
 
-	"github.com/arsaljamal/keel/agent"
+	"github.com/arsaljamal/drill-down-harness/agent"
 )
 
 // Claude calls the Claude Messages API.
@@ -21,7 +21,7 @@ type Claude struct {
 }
 
 // NewClaude returns a Claude model. The API key is read from ANTHROPIC_API_KEY
-// unless passed in opts. The SDK's own retries are turned off: Keel decides
+// unless passed in opts. The SDK's own retries are turned off: the harness decides
 // when to retry, so retries are counted and traced in one place.
 func NewClaude(model string, opts ...option.RequestOption) *Claude {
 	opts = append([]option.RequestOption{option.WithMaxRetries(0)}, opts...)

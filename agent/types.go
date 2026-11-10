@@ -1,4 +1,4 @@
-// Package agent contains Keel's provider-neutral types and the agent loop.
+// Package agent contains the Drill Down Harness's provider-neutral types and the agent loop.
 package agent
 
 import (

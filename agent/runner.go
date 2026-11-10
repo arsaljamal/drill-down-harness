@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/arsaljamal/keel/retry"
+	"github.com/arsaljamal/drill-down-harness/retry"
 )
 
 // StopReason says why a run ended. Every run ends with exactly one.
@@ -69,7 +69,7 @@ type Result struct {
 	Err       error
 }
 
-var tracer = otel.Tracer("github.com/arsaljamal/keel/agent")
+var tracer = otel.Tracer("github.com/arsaljamal/drill-down-harness/agent")
 
 // Run executes task until a stop condition is met.
 func (r *Runner) Run(ctx context.Context, task string) (res Result) {
@@ -90,13 +90,13 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 		defer cancel()
 	}
 
-	ctx, span := tracer.Start(ctx, "keel.run")
+	ctx, span := tracer.Start(ctx, "drill.run")
 	defer func() {
 		span.SetAttributes(
-			attribute.String("keel.stop_reason", string(res.Stop)),
-			attribute.Int("keel.turns", res.Turns),
-			attribute.Int64("keel.tokens.input", res.Usage.InputTokens),
-			attribute.Int64("keel.tokens.output", res.Usage.OutputTokens),
+			attribute.String("drill.stop_reason", string(res.Stop)),
+			attribute.Int("drill.turns", res.Turns),
+			attribute.Int64("drill.tokens.input", res.Usage.InputTokens),
+			attribute.Int64("drill.tokens.output", res.Usage.OutputTokens),
 		)
 		if res.Err != nil {
 			span.RecordError(res.Err)
@@ -132,7 +132,7 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 		}
 
 		res.Turns++
-		turnCtx, turnSpan := tracer.Start(ctx, "keel.turn", trace.WithAttributes(attribute.Int("keel.turn", res.Turns)))
+		turnCtx, turnSpan := tracer.Start(ctx, "drill.turn", trace.WithAttributes(attribute.Int("drill.turn", res.Turns)))
 
 		reply, err := r.generate(turnCtx, ModelRequest{System: r.System, Messages: res.Messages, Tools: specs, MaxTokens: maxOut})
 		if err != nil {
@@ -179,7 +179,7 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 }
 
 func (r *Runner) generate(ctx context.Context, req ModelRequest) (ModelReply, error) {
-	ctx, span := tracer.Start(ctx, "keel.model_call")
+	ctx, span := tracer.Start(ctx, "drill.model_call")
 	defer span.End()
 
 	policy := r.ModelRetry
@@ -199,16 +199,16 @@ func (r *Runner) generate(ctx context.Context, req ModelRequest) (ModelReply, er
 		reply, err = r.Model.Generate(ctx, req)
 		return err
 	})
-	span.SetAttributes(attribute.Int("keel.retries", retries))
+	span.SetAttributes(attribute.Int("drill.retries", retries))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "model call failed")
 		return ModelReply{}, err
 	}
 	span.SetAttributes(
-		attribute.String("keel.model.stop_reason", reply.StopReason),
-		attribute.Int64("keel.tokens.input", reply.Usage.InputTokens),
-		attribute.Int64("keel.tokens.output", reply.Usage.OutputTokens),
+		attribute.String("drill.model.stop_reason", reply.StopReason),
+		attribute.Int64("drill.tokens.input", reply.Usage.InputTokens),
+		attribute.Int64("drill.tokens.output", reply.Usage.OutputTokens),
 	)
 	return reply, nil
 }
@@ -216,7 +216,7 @@ func (r *Runner) generate(ctx context.Context, req ModelRequest) (ModelReply, er
 // callTool runs one tool call. Tool failures are returned to the model as
 // error results so it can recover; they do not end the run.
 func (r *Runner) callTool(ctx context.Context, turn int, c Block) Block {
-	ctx, span := tracer.Start(ctx, "keel.tool_call", trace.WithAttributes(attribute.String("keel.tool", c.ToolName)))
+	ctx, span := tracer.Start(ctx, "drill.tool_call", trace.WithAttributes(attribute.String("drill.tool", c.ToolName)))
 	defer span.End()
 
 	r.emit(Event{Turn: turn, Kind: "tool_call", Message: fmt.Sprintf("%s %s", c.ToolName, c.Input)})
@@ -226,7 +226,7 @@ func (r *Runner) callTool(ctx context.Context, turn int, c Block) Block {
 		span.SetStatus(codes.Error, "tool call failed")
 		out = ToolResult{Text: "tool call failed: " + err.Error(), IsError: true}
 	}
-	span.SetAttributes(attribute.Bool("keel.tool.is_error", out.IsError))
+	span.SetAttributes(attribute.Bool("drill.tool.is_error", out.IsError))
 	r.emit(Event{Turn: turn, Kind: "tool_result", Message: out.Text})
 	return Block{Kind: BlockToolResult, ToolUseID: c.ToolUseID, Text: out.Text, IsError: out.IsError}
 }

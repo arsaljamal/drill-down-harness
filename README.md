@@ -1,23 +1,35 @@
-# Keel
+# Drill Down Harness
 
-An agent harness in Go, built for reliability: the engine around a language model that lets it use tools through MCP, recover from failures, and be measured with evals.
+An on-call investigator. When a page fires at 3 a.m. ("traffic on /refresh doubled"), tell it to find out what is happening. It knows how your product fits together, checks the right systems, proposes how to contain the damage, drills down to the source with evidence, and writes the report.
 
-> Status: **v0.1 in progress.** The agent loop, Claude client, MCP tools, limits, model-call retries and tracing work today. See [docs/design.md](docs/design.md) for the full design and roadmap.
+Underneath is a reliability-first agent harness in Go: any model, tools through MCP, safe actions, retries and full tracing. The command is `drill`.
 
-## Try it
+> Status: **v0.1** (harness core) works today. The investigator is being built on top. See [docs/design.md](docs/design.md) for the full design and roadmap.
+
+## How an investigation runs
+
+| Phase | What happens |
+|---|---|
+| **Map** | Learns the product before anything breaks: entry points, services, endpoints, dashboards, alerts, deploys. |
+| **Triage** | How big is it, are real users hurt, act now or wait? |
+| **Contain** | Proposes rate limits, flag changes or blocks, with blast radius. Nothing runs without your yes. |
+| **Drill down** | Lists every way traffic reaches the endpoint, splits the spike, rules suspects out with evidence. |
+| **Report** | Reproduction steps and an incident report where every number links to its query. |
+
+## Try the harness
 
 Runs on any model. With [Ollama](https://ollama.com) it runs on your own machine and needs no API key:
 
 ```sh
 ollama pull qwen3
-go run ./cmd/keel run --model ollama/qwen3 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
+go run ./cmd/drill run --model ollama/qwen3 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
 ```
 
 Or use a hosted model (the key is read from the environment, never from a file):
 
 ```sh
 export ANTHROPIC_API_KEY=...
-go run ./cmd/keel run --model anthropic/claude-sonnet-5-5 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
+go run ./cmd/drill run --model anthropic/claude-sonnet-5-5 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
 ```
 
 | `--model` prefix | Talks to | Key |
@@ -36,23 +48,17 @@ Add `--trace` to print OpenTelemetry spans for the run, each turn, each model ca
 
 | Package | What it does |
 |---|---|
-| `agent` | Provider-neutral types and the agent loop, with stop reasons: done, max_turns, token_budget, timeout, stuck, model_error, cancelled |
-| `model` | Two adapters: Claude, and any OpenAI-compatible server. Retries are owned and traced by Keel |
+| `agent` | Provider-neutral types and the agent loop, with stop reasons: done, max_turns, token_budget, timeout, stuck, model_error, tools_error, cancelled |
+| `model` | Two adapters: Claude, and any OpenAI-compatible server. Retries are owned and traced by the harness |
 | `tools` | MCP toolbox on the official Go SDK; classifies tools as read-only, idempotent or unsafe from MCP annotations |
 | `retry` | Exponential backoff with full jitter |
-| `examples/demoserver` | A tiny MCP server to try Keel against |
+| `examples/demoserver` | A tiny MCP server to try the harness against |
 
-## What it does (planned)
+## Principles
 
-- **Agent loop** with clear stop conditions: done, limit reached, stuck, or rejected.
-- **Tools through MCP**, using the official Go SDK.
-- **Reliability built in:** retries with backoff, idempotency keys, side-effect classes, a dead-letter store for failed steps, and resume after a crash without sending anything twice.
-- **Tracing** of every step with OpenTelemetry.
-- **Evals** that score the agent on a task suite and catch regressions in CI.
-
-## Why
-
-Agents fail the same way distributed systems do: timeouts, retries, partial failures, silent loss. Keel applies the patterns that keep message pipelines reliable to agent runs.
+- **Evidence or it didn't happen:** every finding cites the tool call behind it.
+- **Read freely, act carefully:** investigation is read-only; anything that changes production waits for approval.
+- **Say what you can't see:** missing access is reported as a gap, never guessed.
 
 ## License
 

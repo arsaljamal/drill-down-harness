@@ -8,7 +8,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go/v2"
 
-	"github.com/arsaljamal/keel/agent"
+	"github.com/arsaljamal/drill-down-harness/agent"
 )
 
 func TestRetryable(t *testing.T) {

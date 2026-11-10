@@ -1,4 +1,4 @@
-module github.com/arsaljamal/keel
+module github.com/arsaljamal/drill-down-harness
 
 go 1.25.7
 

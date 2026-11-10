@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/arsaljamal/keel/agent"
+	"github.com/arsaljamal/drill-down-harness/agent"
 )
 
 // fakeOpenAI answers like an OpenAI-compatible server (e.g. Ollama): first a

@@ -1,4 +1,4 @@
-// Package tools connects Keel to tools. v0.1 supports MCP servers.
+// Package tools connects the harness to tools. v0.1 supports MCP servers.
 package tools
 
 import (
@@ -9,7 +9,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/arsaljamal/keel/agent"
+	"github.com/arsaljamal/drill-down-harness/agent"
 )
 
 // SideEffect classifies what a tool call can change. It drives retry and
@@ -48,7 +48,7 @@ type MCP struct {
 // ConnectMCP connects to an MCP server over the given transport, for example
 // &mcp.CommandTransport{Command: exec.Command("my-server")}.
 func ConnectMCP(ctx context.Context, t mcp.Transport) (*MCP, error) {
-	client := mcp.NewClient(&mcp.Implementation{Name: "keel", Version: "0.1.0"}, nil)
+	client := mcp.NewClient(&mcp.Implementation{Name: "drill-down-harness", Version: "0.1.0"}, nil)
 	session, err := client.Connect(ctx, t, nil)
 	if err != nil {
 		return nil, fmt.Errorf("connect to MCP server: %w", err)

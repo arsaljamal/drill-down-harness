@@ -1,6 +1,6 @@
-// Command keel runs an agent task against MCP tools.
+// Command drill runs an agent task against MCP tools.
 //
-//	keel run --model ollama/qwen3 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
+//	drill run --model ollama/qwen3 --mcp "go run ./examples/demoserver" "What is 21.5 + 20.5?"
 package main
 
 import (
@@ -19,15 +19,15 @@ import (
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/arsaljamal/keel/agent"
-	"github.com/arsaljamal/keel/model"
-	"github.com/arsaljamal/keel/retry"
-	"github.com/arsaljamal/keel/tools"
+	"github.com/arsaljamal/drill-down-harness/agent"
+	"github.com/arsaljamal/drill-down-harness/model"
+	"github.com/arsaljamal/drill-down-harness/retry"
+	"github.com/arsaljamal/drill-down-harness/tools"
 )
 
 func main() {
 	if len(os.Args) < 2 || os.Args[1] != "run" {
-		fmt.Fprintln(os.Stderr, `usage: keel run --mcp "<server command>" [flags] "<task>"`)
+		fmt.Fprintln(os.Stderr, `usage: drill run --mcp "<server command>" [flags] "<task>"`)
 		os.Exit(2)
 	}
 	os.Exit(run(os.Args[2:]))
@@ -48,7 +48,7 @@ func run(args []string) int {
 
 	task := strings.Join(fs.Args(), " ")
 	if *server == "" || task == "" {
-		fmt.Fprintln(os.Stderr, "keel run: --mcp and a task are required")
+		fmt.Fprintln(os.Stderr, "drill run: --mcp and a task are required")
 		return 2
 	}
 

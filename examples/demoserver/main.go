@@ -1,4 +1,4 @@
-// Command demoserver is a tiny MCP server over stdio for trying Keel.
+// Command demoserver is a tiny MCP server over stdio for trying the Drill Down Harness.
 // It exposes a read-only "add" tool and an unsafe "notify" tool that only
 // pretends to send a message.
 package main
@@ -22,7 +22,7 @@ type notifyIn struct {
 }
 
 func main() {
-	s := mcp.NewServer(&mcp.Implementation{Name: "keel-demo", Version: "0.1.0"}, nil)
+	s := mcp.NewServer(&mcp.Implementation{Name: "drill-demo", Version: "0.1.0"}, nil)
 
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "add",
