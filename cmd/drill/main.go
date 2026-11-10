@@ -311,12 +311,33 @@ func bench(args []string) int {
 	timeout := fset.Duration("timeout", 45*time.Minute, "time limit per task")
 	priceIn := fset.Float64("price-in", 0, "USD per million input tokens, for cost estimates")
 	priceOut := fset.Float64("price-out", 0, "USD per million output tokens, for cost estimates")
+	keyFile := fset.String("api-key-file", "", "read the API key from this file (keeps it out of your shell history)")
 	check := fset.Bool("check", false, "setup check: submit the answer key instead of calling a model (should score 1.0)")
 	fset.Parse(args[1:])
 
 	var m agent.Model
 	var retryable func(error) bool
 	var err error
+	if *keyFile != "" {
+		b, err := os.ReadFile(*keyFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "api key file:", err)
+			return 2
+		}
+		env := *keyEnv
+		if env == "" {
+			name, _, _ := strings.Cut(*modelFlag, "/")
+			env = providers[name].keyEnv
+			if name == "anthropic" {
+				env = "ANTHROPIC_API_KEY"
+			}
+		}
+		if env == "" {
+			fmt.Fprintln(os.Stderr, "--api-key-file: this provider takes no key; set --api-key-env")
+			return 2
+		}
+		os.Setenv(env, strings.TrimSpace(string(b)))
+	}
 	if *check {
 		*modelFlag = "answer-key-check"
 	} else if m, retryable, err = pickModel(*modelFlag, *baseURL, *keyEnv); err != nil {
@@ -346,7 +367,9 @@ func bench(args []string) int {
 	defer stop()
 
 	results, err := itbench.Run(ctx, itbench.Options{
-		Model: m, ModelName: *modelFlag, Retryable: retryable,
+		Model: m, ModelName: *modelFlag,
+		Retry: retry.Policy{MaxAttempts: 8, BaseDelay: 2 * time.Second, MaxDelay: time.Minute,
+			Retryable: retryable, WaitHint: model.WaitHint, MaxHint: 5 * time.Minute},
 		Scenarios: ids, Limit: *limit, OutDir: *out, WorkDir: *work, Keep: *keep,
 		StopBelow: *stopBelow, MinTasks: *minTasks,
 		MaxTurns: *maxTurns, MaxTokens: *maxTokens, Timeout: *timeout,

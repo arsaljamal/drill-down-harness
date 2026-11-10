@@ -18,6 +18,12 @@ type Policy struct {
 	// When nil, every error is retried.
 	Retryable func(error) bool
 
+	// WaitHint, if set, can return how long the server asked us to wait
+	// (for example from a Retry-After header). It replaces the backoff for
+	// that attempt, capped at MaxHint; a longer hint ends the retries.
+	WaitHint func(error) (time.Duration, bool)
+	MaxHint  time.Duration
+
 	// OnRetry is called before each wait, for logging and metrics.
 	OnRetry func(attempt int, err error, wait time.Duration)
 
@@ -58,6 +64,14 @@ func Do(ctx context.Context, p Policy, fn func(context.Context) error) error {
 			return err
 		}
 		wait := p.backoff(attempt, rnd)
+		if p.WaitHint != nil {
+			if hint, ok := p.WaitHint(err); ok {
+				if p.MaxHint > 0 && hint > p.MaxHint {
+					return err // e.g. a daily quota: retrying now is pointless
+				}
+				wait = hint
+			}
+		}
 		if p.OnRetry != nil {
 			p.OnRetry(attempt, err, wait)
 		}

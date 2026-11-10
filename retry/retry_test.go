@@ -90,3 +90,29 @@ func TestStopsWhenContextCancelled(t *testing.T) {
 		t.Fatalf("want 1 call after cancel, got %d calls, %v", calls, err)
 	}
 }
+
+func TestWaitHintOverridesBackoffAndCapsLongWaits(t *testing.T) {
+	var waits []time.Duration
+	p := testPolicy(5, &waits)
+	p.WaitHint = func(error) (time.Duration, bool) { return 20 * time.Second, true }
+	p.MaxHint = time.Minute
+	calls := 0
+	Do(context.Background(), p, func(context.Context) error {
+		calls++
+		if calls < 3 {
+			return errTransient
+		}
+		return nil
+	})
+	if len(waits) != 2 || waits[0] != 20*time.Second {
+		t.Fatalf("waits = %v, want two 20s waits", waits)
+	}
+
+	waits = nil
+	p.WaitHint = func(error) (time.Duration, bool) { return 10 * time.Hour, true } // daily quota
+	calls = 0
+	err := Do(context.Background(), p, func(context.Context) error { calls++; return errTransient })
+	if calls != 1 || err == nil {
+		t.Fatalf("want immediate give-up on a long hint, got %d calls", calls)
+	}
+}

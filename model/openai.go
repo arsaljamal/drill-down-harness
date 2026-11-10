@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/arsaljamal/drill-down-harness/agent"
 )
@@ -25,8 +27,9 @@ type OpenAICompatible struct {
 
 // HTTPError is a non-2xx answer from the server.
 type HTTPError struct {
-	Status int
-	Body   string
+	Status     int
+	Body       string
+	RetryAfter time.Duration // from the Retry-After header, if any
 }
 
 func (e *HTTPError) Error() string {
@@ -109,7 +112,7 @@ func (o *OpenAICompatible) Generate(ctx context.Context, req agent.ModelRequest)
 		return agent.ModelReply{}, err
 	}
 	if resp.StatusCode/100 != 2 {
-		return agent.ModelReply{}, &HTTPError{Status: resp.StatusCode, Body: string(raw)}
+		return agent.ModelReply{}, &HTTPError{Status: resp.StatusCode, Body: string(raw), RetryAfter: retryAfter(resp.Header.Get("Retry-After"))}
 	}
 	var out oaResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -119,6 +122,26 @@ func (o *OpenAICompatible) Generate(ctx context.Context, req agent.ModelRequest)
 		return agent.ModelReply{}, errors.New("model response has no choices")
 	}
 	return fromOA(out), nil
+}
+
+// retryAfter parses a Retry-After header given in seconds.
+func retryAfter(h string) time.Duration {
+	if n, err := strconv.Atoi(strings.TrimSpace(h)); err == nil && n >= 0 {
+		return time.Duration(n) * time.Second
+	}
+	return 0
+}
+
+// WaitHint returns the server's requested wait for rate-limit errors.
+func WaitHint(err error) (time.Duration, bool) {
+	var h *HTTPError
+	if errors.As(err, &h) && h.Status == 429 {
+		if h.RetryAfter > 0 {
+			return h.RetryAfter, true
+		}
+		return 30 * time.Second, true // rate limited with no hint: wait out a typical per-minute window
+	}
+	return 0, false
 }
 
 // RetryableOpenAI reports whether an OpenAI-compatible error is worth retrying.

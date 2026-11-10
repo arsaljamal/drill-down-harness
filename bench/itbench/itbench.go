@@ -46,7 +46,7 @@ WORKDIR /home/user
 type Options struct {
 	Model     agent.Model
 	ModelName string
-	Retryable func(error) bool
+	Retry     retry.Policy
 	Scenarios []string // empty: all public scenarios
 	Limit     int      // stop after this many tasks (0: no limit)
 	OutDir    string
@@ -101,17 +101,41 @@ func Run(ctx context.Context, o Options) ([]TaskResult, error) {
 	}
 	defer resultsFile.Close()
 
+	// Resume: tasks already in results.jsonl count towards the mean and are skipped.
+	done := map[string]bool{}
 	var results []TaskResult
 	sum := 0.0
-	for i, id := range ids {
-		if o.Limit > 0 && i >= o.Limit {
+	if b, err := os.ReadFile(filepath.Join(o.OutDir, "results.jsonl")); err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+			var r TaskResult
+			if json.Unmarshal([]byte(line), &r) == nil && r.Scenario != "" {
+				done[r.Scenario] = true
+				results = append(results, r)
+				sum += r.Reward
+			}
+		}
+		if len(results) > 0 {
+			o.Log("resuming: %d task(s) already scored in %s", len(results), o.OutDir)
+		}
+	}
+	ran := 0
+	for _, id := range ids {
+		if done[id] {
+			continue
+		}
+		if o.Limit > 0 && ran >= o.Limit {
 			break
 		}
+		ran++
 		if ctx.Err() != nil {
 			return results, ctx.Err()
 		}
-		o.Log("\n=== %s (%d of %d) ===", id, i+1, len(ids))
+		o.Log("\n=== %s (%d of %d) ===", id, len(results)+1, len(ids))
 		r := runTask(ctx, o, id)
+		if quotaHit(r) {
+			o.Log("%s: the model provider's quota is used up (%s). Not recording this task; run the same command later to resume.", id, oneLine(r.Error, 160))
+			return results, fmt.Errorf("provider quota reached")
+		}
 		results = append(results, r)
 		sum += r.Reward
 		line, _ := json.Marshal(r)
@@ -173,7 +197,7 @@ func runTask(ctx context.Context, o Options, id string) (res TaskResult) {
 		System:     "You are an SRE investigation agent working only through the run_shell tool. Keep each command's output small: use head, wc, grep, or short Python/pandas scripts instead of printing whole files.",
 		Limits:     agent.Limits{MaxTurns: o.MaxTurns, MaxTokens: o.MaxTokens, MaxRepeats: 4},
 		MaxOutput:  8192,
-		ModelRetry: retry.Default(o.Retryable),
+		ModelRetry: o.Retry,
 		Compact:    agent.TrimOldToolResults(6, 2000),
 		Observe: func(e agent.Event) {
 			if e.Kind == "tool_call" || e.Kind == "retry" || e.Kind == "stop" {
@@ -203,6 +227,12 @@ func runTask(ctx context.Context, o Options, id string) (res TaskResult) {
 	}
 	res.Reward = reward
 	return res
+}
+
+// quotaHit reports a run that ended because the provider refused more
+// requests (rate or daily limit), not because the agent failed.
+func quotaHit(r TaskResult) bool {
+	return r.Stop == string(agent.StopModelError) && (strings.Contains(r.Error, " 429") || strings.Contains(strings.ToLower(r.Error), "quota") || strings.Contains(strings.ToLower(r.Error), "rate limit"))
 }
 
 // ---------- dataset ----------
