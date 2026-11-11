@@ -1,0 +1,18 @@
+README.md
+  h_371447aadb4730 19-23
+bench-results/pilot.log
+  h_371447aadb4730 7-25
+docs/design.md
+  h_371447aadb4730 3,171-206,216,219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "224f69bf368ed7eddeb48544773bf54d7665ca86",
+  "prompts": {},
+  "humans": {
+    "h_371447aadb4730": {
+      "author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
