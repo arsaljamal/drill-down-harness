@@ -120,7 +120,7 @@ func Run(ctx context.Context, o Options) ([]TaskResult, error) {
 			o.Log("resuming: %d task(s) already scored in %s", len(results), o.OutDir)
 		}
 	}
-	ran := 0
+	ran, infraInARow := 0, 0
 	for _, id := range ids {
 		if done[id] {
 			continue
@@ -135,9 +135,13 @@ func Run(ctx context.Context, o Options) ([]TaskResult, error) {
 		o.Log("\n=== %s (%d of %d) ===", id, len(results)+1, len(ids))
 		r := runTask(ctx, o, id)
 		if r.Infra {
-			o.Log("%s: skipped, not scored (%s)", id, oneLine(r.Error, 200))
+			o.Log("%s: skipped, not scored (%s)", id, oneLine(r.Error, 300))
+			if infraInARow++; infraInARow >= 2 {
+				return results, fmt.Errorf("two tasks in a row failed for reasons outside the agent; stopping to avoid wasting quota")
+			}
 			continue
 		}
+		infraInARow = 0
 		if quotaHit(r) {
 			o.Log("%s: the model provider's quota is used up (%s). Not recording this task; run the same command later to resume.", id, oneLine(r.Error, 160))
 			return results, fmt.Errorf("provider quota reached")
@@ -217,6 +221,11 @@ func runTask(ctx context.Context, o Options, id string) (res TaskResult) {
 	res.CostUSD = float64(res.TokensIn)/1e6*o.PriceIn + float64(res.TokensOut)/1e6*o.PriceOut
 	if run.Err != nil {
 		res.Error = run.Err.Error()
+	}
+	// A failed model call is the provider's or the harness's problem, not
+	// the agent's reasoning: don't score it (quota is reported separately).
+	if run.Stop == agent.StopModelError && !quotaHit(res) {
+		res.Infra = true
 	}
 	if t, err := json.MarshalIndent(run.Messages, "", " "); err == nil {
 		os.WriteFile(filepath.Join(taskOut, "transcript.json"), t, 0o644)

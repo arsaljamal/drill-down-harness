@@ -28,7 +28,7 @@ func fakeOpenAI(t *testing.T, seen *[]oaRequest, auth *string) *httptest.Server 
 			w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"The answer is 42."},"finish_reason":"stop"}],"usage":{"prompt_tokens":30,"completion_tokens":6}}`))
 			return
 		}
-		w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"add","arguments":"{\"a\":21.5,\"b\":20.5}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":20,"completion_tokens":9}}`))
+		w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","extra_content":{"google":{"thought_signature":"sig-123"}},"function":{"name":"add","arguments":"{\"a\":21.5,\"b\":20.5}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":20,"completion_tokens":9}}`))
 	}))
 }
 
@@ -70,6 +70,9 @@ func TestOpenAICompatibleRunsAgentLoopWithoutKey(t *testing.T) {
 	}
 	if msgs[2].ToolCalls[0].ID != "call_1" || msgs[3].ToolCallID != "call_1" || *msgs[3].Content != "42" {
 		t.Fatalf("tool round trip broken: %+v / %+v", msgs[2], msgs[3])
+	}
+	if string(msgs[2].ToolCalls[0].ExtraContent) != `{"google":{"thought_signature":"sig-123"}}` {
+		t.Fatalf("provider data not sent back: %s", msgs[2].ToolCalls[0].ExtraContent)
 	}
 	if seen[0].Tools[0].Function.Name != "add" || seen[0].Model != "qwen3" {
 		t.Fatalf("tools/model not sent: %+v", seen[0])

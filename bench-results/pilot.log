@@ -1,7 +1,12 @@
 
 === Scenario-1 (1 of 40) ===
 downloading snapshot…
-Scenario-1: reward=0.00 stop= turns=0 cost=$0.00 | running mean 0.000 over 1 task(s)
+downloading 91 file(s), 1180 MB
+download complete
+  [turn 1] tool_call run_shell {"command":"ls -la /home/user"}
+  [turn 2] stop model_error
+Scenario-1: reward=0.00 stop=model_error turns=2 cost=$0.00 | running mean 0.000 over 1 task(s)
 
 === Scenario-2 (2 of 40) ===
 downloading snapshot…
+downloading 77 file(s), 698 MB

@@ -47,9 +47,12 @@ type oaMessage struct {
 }
 
 type oaToolCall struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Function struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	// ExtraContent carries provider data such as Gemini's thought
+	// signature; it must be returned with the call on the next turn.
+	ExtraContent json.RawMessage `json:"extra_content,omitempty"`
+	Function     struct {
 		Name      string `json:"name"`
 		Arguments string `json:"arguments"`
 	} `json:"function"`
@@ -174,7 +177,7 @@ func toOAMessages(system string, msgs []agent.Message) []oaMessage {
 				case agent.BlockText:
 					text = append(text, b.Text)
 				case agent.BlockToolUse:
-					tc := oaToolCall{ID: b.ToolUseID, Type: "function"}
+					tc := oaToolCall{ID: b.ToolUseID, Type: "function", ExtraContent: b.Meta}
 					tc.Function.Name = b.ToolName
 					tc.Function.Arguments = string(b.Input)
 					if tc.Function.Arguments == "" {
@@ -238,7 +241,7 @@ func fromOA(r oaResponse) agent.ModelReply {
 		if strings.TrimSpace(args) == "" {
 			args = "{}"
 		}
-		reply.Blocks = append(reply.Blocks, agent.Block{Kind: agent.BlockToolUse, ToolUseID: tc.ID, ToolName: tc.Function.Name, Input: json.RawMessage(args)})
+		reply.Blocks = append(reply.Blocks, agent.Block{Kind: agent.BlockToolUse, ToolUseID: tc.ID, ToolName: tc.Function.Name, Input: json.RawMessage(args), Meta: tc.ExtraContent})
 	}
 	return reply
 }

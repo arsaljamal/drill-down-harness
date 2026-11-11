@@ -33,6 +33,10 @@ type Block struct {
 	ToolName  string          `json:"tool_name,omitempty"`
 	Input     json.RawMessage `json:"input,omitempty"`
 	IsError   bool            `json:"is_error,omitempty"`
+
+	// Meta is opaque provider data attached to a tool call (for example
+	// Gemini's thought signature). Adapters must send it back unchanged.
+	Meta json.RawMessage `json:"meta,omitempty"`
 }
 
 // Message is one turn in the conversation.
