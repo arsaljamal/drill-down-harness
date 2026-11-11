@@ -16,6 +16,11 @@ Underneath is a reliability-first agent harness in Go: any model, tools through 
 | **Drill down** | Lists every way traffic reaches the endpoint, splits the spike, rules suspects out with evidence. |
 | **Report** | Reproduction steps and an incident report where every number links to its query. |
 
+## Domains
+
+- **Reliability** (now): traffic spikes, errors, latency, failed dependencies.
+- **Security** (planned, v0.7): leaked secrets, vulnerable dependencies, cloud misconfiguration, risky identities, attack investigation. Defensive and read-only by default; secrets are never shown in full.
+
 ## Install
 
 Release downloads for macOS, Linux and Windows, and a Docker image (`ghcr.io/arsaljamal/drill`), are published from the first tagged release. Until then:

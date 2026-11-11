@@ -1,6 +1,6 @@
 # Drill Down Harness: design
 
-Status: draft v0.3 (2026-11-10). Author: Arsal Jamal.
+Status: draft v0.4 (2026-11-11). Author: Arsal Jamal.
 
 The Drill Down Harness is an on-call investigator. When a page fires in the middle of the night ("traffic on /refresh doubled"), you tell it to find out what is happening. It already knows how your product fits together, so it checks the right systems, contains the damage once you approve, drills down to the source with evidence, and writes the report.
 
@@ -168,7 +168,42 @@ Five layers, cheapest first:
 
 What we measure per run: root cause correct, all causes found (for concurrent faults), every claim cited, hallucinated claims, coverage of the checklist, empty-query rate, time to triage, time to cause, tokens and cost, model used. `drill eval` prints a table and fails CI if accuracy or citation rate drops against the last baseline. Expensive eval runs are nightly, not on every push; a local model through Ollama keeps a cheap smoke run on every push.
 
-## 7. Roadmap
+## 7. Second domain: security investigation
+
+The same harness, pointed at security. The engine, loop, approvals, journal and evidence rules do not change; a domain is a set of MCP connectors, playbooks and benchmarks. Command: `drill investigate --domain security`.
+
+### 7.1 What it checks
+
+| Area | Questions it answers | Tools it drives through MCP |
+|---|---|---|
+| Code | Are secrets committed (now or in history)? Which dependencies have known vulnerabilities? Risky code patterns? | Gitleaks, Trivy / OSV, Semgrep |
+| Credentials and identity | Which keys are old, unused or never rotated? Which service accounts have more access than they use? | cloud IAM APIs, GitHub organisation settings |
+| Services and cloud | What breaks the CIS benchmarks? Public buckets, open ports, exposed admin panels? | Prowler, Checkov, cloud APIs |
+| Attacks | Is this alert or traffic spike an attack, where did it come from, what did it touch? | SIEM and log stores, CDN and WAF logs |
+
+The product map gains security nodes (repos, secrets locations, identities, exposed endpoints) and edges (can-access, exposed-by, deployed-from), so "what can this leaked key reach?" is a graph question.
+
+### 7.2 Safety rules for this domain
+- **Defensive only.** No exploit generation, no attacking systems. Out of scope by design.
+- **Only systems the operator owns or is authorised to assess**, declared in `drill.yaml`.
+- **Read-only by default.** Remediation (rotate a key, revoke a token, block an address, close a port) is unsafe and goes through the approval gate.
+- **Secrets are never shown or stored in full.** Findings record location, type, age and a short fingerprint; the journal and reports are redacted.
+
+### 7.3 Benchmarks
+
+| Benchmark | Tests | Best published | Use |
+|---|---|---|---|
+| ExCyTIn-Bench (Microsoft, ICML 2026) | Interactive threat investigation over realistic security logs | about 0.6 of 1 | primary |
+| ITBench CISO (IBM) | CIS-benchmark compliance assessment | 25.2% of scenarios | primary; same framework as our SRE runner |
+| CyberSOCEval (Meta, CrowdStrike) | SOC reasoning, multiple choice | n/a | secondary |
+| Simbian AI SOC leaderboard | End-to-end alert investigation | n/a | watch |
+
+Offensive benchmarks (Cybench, CyberGym, ExploitGym) are out of scope.
+
+### 7.4 Landscape
+Platforms (Wiz, Snyk, GitHub Advanced Security, Microsoft Security Copilot, CrowdStrike Charlotte AI, Google's Gemini security agents) and open-source scanners (Prowler, Trivy, Semgrep, Gitleaks). Scanners find issues but do not investigate. Our angle: an open-source investigator that drives those scanners, links findings across code, identity, services and logs with evidence for every claim, and handles reliability and security incidents with one tool.
+
+## 8. Roadmap
 
 | Version | Scope | Target |
 |---|---|---|
@@ -178,9 +213,10 @@ What we measure per run: root cause correct, all causes found (for concurrent fa
 | v0.4 | Product map (`drill map`) and coverage checklist | 2026-12-08 |
 | v0.5 | Investigate: triage, hypothesis board, evidence rules, verify step, playbooks | 2026-12-15 |
 | v0.6 | Contain and serve: approvals, journal, resume, `drill serve` with webhook trigger; first published eval numbers | 2026-12-22 |
+| v0.7 | Security domain: secrets, dependency, cloud-config and identity connectors; security playbooks; redaction; ExCyTIn-Bench and ITBench CISO runners | 2027-01 |
 | later | Report polish, ORCA-bench subset, chat/phone approvals, Rust sandbox for reproduction scripts | 2027 |
 
-## 8. Open questions
+## 9. Open questions
 - How is the map kept fresh without expensive full rediscovery? Incremental refresh per source?
 - What is the minimum read access a team must grant for useful results, and how is it described to them?
 - Containment approvals at 03:00: phone notification, chat message, or CLI only at first?
