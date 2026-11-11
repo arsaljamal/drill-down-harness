@@ -1,0 +1,21 @@
+bench/itbench/oracle.go
+  s_6208c722798bf1::t_b506f925a2f57f 42,54,61-64
+bench/itbench/itbench.go
+  s_6208c722798bf1::t_aae79dd304767e 22,78,137-140,173,179,232,316,322,326,329-369,373-377,392-429,434-436
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "513372e6b36fed659209803ced302cc9ed9be583",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
