@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/arsaljamal/drill-down-harness/agent"
@@ -74,6 +75,7 @@ type TaskResult struct {
 	CostUSD   float64 `json:"cost_usd"`
 	Seconds   float64 `json:"seconds"`
 	Answered  bool    `json:"answered"`
+	Infra     bool    `json:"-"` // failed before or after the agent ran (download, sandbox, grader): not a score
 	Error     string  `json:"error,omitempty"`
 }
 
@@ -132,6 +134,10 @@ func Run(ctx context.Context, o Options) ([]TaskResult, error) {
 		}
 		o.Log("\n=== %s (%d of %d) ===", id, len(results)+1, len(ids))
 		r := runTask(ctx, o, id)
+		if r.Infra {
+			o.Log("%s: skipped, not scored (%s)", id, oneLine(r.Error, 200))
+			continue
+		}
 		if quotaHit(r) {
 			o.Log("%s: the model provider's quota is used up (%s). Not recording this task; run the same command later to resume.", id, oneLine(r.Error, 160))
 			return results, fmt.Errorf("provider quota reached")
@@ -164,13 +170,13 @@ func runTask(ctx context.Context, o Options, id string) (res TaskResult) {
 
 	o.Log("downloading snapshot…")
 	if err := download(ctx, id, data, o.Log); err != nil {
-		res.Error = "download: " + err.Error()
+		res.Error, res.Infra = "download: "+err.Error(), true
 		return res
 	}
 
 	box, err := startSandbox(ctx, id, data)
 	if err != nil {
-		res.Error = "sandbox: " + err.Error()
+		res.Error, res.Infra = "sandbox: "+err.Error(), true
 		return res
 	}
 	defer box.stop()
@@ -223,7 +229,7 @@ func runTask(ctx context.Context, o Options, id string) (res TaskResult) {
 	}
 	reward, err := grade(ctx, data, taskOut)
 	if err != nil {
-		res.Error = strings.TrimSpace(res.Error + "; grade: " + err.Error())
+		res.Error, res.Infra = strings.TrimSpace(res.Error+"; grade: "+err.Error()), true
 	}
 	res.Reward = reward
 	return res
@@ -307,29 +313,68 @@ func download(ctx context.Context, id, dest string, log func(string, ...any)) er
 	if err != nil {
 		return err
 	}
+	var todo []treeEntry
 	var total int64
 	for _, e := range entries {
 		if e.Type != "file" {
 			continue
 		}
-		rel := strings.TrimPrefix(e.Path, "sre/"+id+"/")
-		target := filepath.Join(dest, rel)
+		target := filepath.Join(dest, strings.TrimPrefix(e.Path, "sre/"+id+"/"))
 		if st, err := os.Stat(target); err == nil && st.Size() == e.Size {
 			continue // already downloaded
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		if err := fetch(ctx, fmt.Sprintf("https://huggingface.co/datasets/%s/resolve/main/%s", dataset, e.Path), target); err != nil {
-			return fmt.Errorf("%s: %w", rel, err)
-		}
+		todo = append(todo, e)
 		total += e.Size
 	}
-	log("downloaded %.0f MB", float64(total)/1e6)
+	log("downloading %d file(s), %.0f MB", len(todo), float64(total)/1e6)
+
+	jobs := make(chan treeEntry)
+	errs := make(chan error, len(todo))
+	var wg sync.WaitGroup
+	for w := 0; w < 4; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for e := range jobs {
+				rel := strings.TrimPrefix(e.Path, "sre/"+id+"/")
+				target := filepath.Join(dest, rel)
+				if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+					errs <- err
+					continue
+				}
+				url := fmt.Sprintf("https://huggingface.co/datasets/%s/resolve/main/%s", dataset, e.Path)
+				var last error
+				for attempt := 1; attempt <= 5; attempt++ {
+					if last = fetch(ctx, url, target, e.Size); last == nil || ctx.Err() != nil {
+						break
+					}
+					log("  retrying %s (attempt %d): %v", rel, attempt+1, last)
+					time.Sleep(time.Duration(attempt*attempt) * 2 * time.Second)
+				}
+				if last != nil {
+					errs <- fmt.Errorf("%s: %w", rel, last)
+				}
+			}
+		}()
+	}
+	for _, e := range todo {
+		jobs <- e
+	}
+	close(jobs)
+	wg.Wait()
+	close(errs)
+	if err := <-errs; err != nil {
+		return err
+	}
+	log("download complete")
 	return nil
 }
 
-func fetch(ctx context.Context, url, target string) error {
+// fetch downloads one file. A transfer that makes no progress for two
+// minutes is abandoned so a dead connection can't hang the run.
+func fetch(ctx context.Context, url, target string, size int64) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -344,12 +389,50 @@ func fetch(ctx context.Context, url, target string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		f.Close()
-		return err
+	progress := make(chan struct{}, 1)
+	go func() {
+		t := time.NewTimer(2 * time.Minute)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-progress:
+				t.Reset(2 * time.Minute)
+			case <-t.C:
+				cancel() // stalled
+				return
+			}
+		}
+	}()
+	buf := make([]byte, 256<<10)
+	var written int64
+	for {
+		n, rerr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, werr := f.Write(buf[:n]); werr != nil {
+				f.Close()
+				return werr
+			}
+			written += int64(n)
+			select {
+			case progress <- struct{}{}:
+			default:
+			}
+		}
+		if rerr == io.EOF {
+			break
+		}
+		if rerr != nil {
+			f.Close()
+			return rerr
+		}
 	}
 	if err := f.Close(); err != nil {
 		return err
+	}
+	if size > 0 && written != size {
+		return fmt.Errorf("got %d of %d bytes", written, size)
 	}
 	return os.Rename(tmp, target)
 }

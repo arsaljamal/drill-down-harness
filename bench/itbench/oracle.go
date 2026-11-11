@@ -39,6 +39,7 @@ func newOracle(data string) (*oracle, error) {
 	var gt struct {
 		Groups []struct {
 			Kind      string   `yaml:"kind"`
+			Name      string   `yaml:"name"`
 			Filter    []string `yaml:"filter"`
 			Namespace string   `yaml:"namespace"`
 			RootCause bool     `yaml:"root_cause"`
@@ -50,14 +51,17 @@ func newOracle(data string) (*oracle, error) {
 	clean := regexp.MustCompile(`(\\b|-\.\*|-\.\+|\.\*|\^|\$)`)
 	var factors []map[string]string
 	for _, g := range gt.Groups {
-		if !g.RootCause || len(g.Filter) == 0 {
+		if !g.RootCause || (len(g.Filter) == 0 && g.Name == "") {
 			continue
 		}
 		ns := g.Namespace
 		if ns == "" {
 			ns = "cluster"
 		}
-		name := clean.ReplaceAllString(g.Filter[0], "")
+		name := g.Name
+		if name == "" {
+			name = clean.ReplaceAllString(g.Filter[0], "")
+		}
 		factors = append(factors, map[string]string{"name": fmt.Sprintf("%s/%s/%s", ns, g.Kind, name), "reasoning": "answer key", "evidence": "answer key"})
 	}
 	if len(factors) == 0 {
