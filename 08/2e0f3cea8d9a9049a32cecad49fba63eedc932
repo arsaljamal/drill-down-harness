@@ -1,0 +1,34 @@
+lens/series.go
+  s_6208c722798bf1::t_bb5a2464c62996 1-138,140-167
+  s_6208c722798bf1::t_ba20f22615e7de 139
+cmd/drill/main.go
+  s_6208c722798bf1::t_ddd8f855d278a4 35,194-197
+  s_6208c722798bf1::t_74aaa6898dba9a 198
+config/config.go
+  s_6208c722798bf1::t_ddd8f855d278a4 28,118-122,194-197
+agent/runner.go
+  s_6208c722798bf1::t_ddd8f855d278a4 43,66-69,261-266
+lens/series_test.go
+  s_6208c722798bf1::t_bb5a2464c62996 1-30
+agent/runner_test.go
+  s_6208c722798bf1::t_ddd8f855d278a4 7,187-199
+  s_6208c722798bf1::t_437f84ad9b52ed 200
+README.md
+  s_6208c722798bf1::t_5cd674b2033572 71-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "082e0f3cea8d9a9049a32cecad49fba63eedc932",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
