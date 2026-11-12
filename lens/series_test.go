@@ -14,7 +14,7 @@ func TestSeriesSummarisesAJump(t *testing.T) {
 	if !ok {
 		t.Fatal("not recognised")
 	}
-	for _, want := range []string{"2 time series", "{search_mode=vector}: 0.024 at the start", "2.43 now", "jumped from 0.024 to 2.40 3 min ago", "(all): 0.08", "steady"} {
+	for _, want := range []string{"2 time series", "{search_mode=vector}: 2.43 now", "rose from 0.024 to this level 3 min ago", "(all): 0.08 now", "steady"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}
@@ -26,5 +26,15 @@ func TestSeriesLeavesOtherTextAlone(t *testing.T) {
 		if out, ok := Series(in, time.Now()); ok || out != in {
 			t.Fatalf("changed %q -> %q", in, out)
 		}
+	}
+}
+
+func TestSeriesIgnoresAnOldSpike(t *testing.T) {
+	now := time.Unix(1000, 0)
+	// a spike long ago, back to normal, then a new rise 2 minutes ago
+	in := `{"data":[{"metric":{},"values":[[400,"3.7"],[460,"3.6"],[520,"0.1"],[580,"0.1"],[640,"0.1"],[700,"0.1"],[760,"0.1"],[820,"0.1"],[880,"2.4"],[940,"2.4"]]}]}`
+	out, _ := SeriesFor("my_query", in, now)
+	if !strings.Contains(out, "Result of my_query") || !strings.Contains(out, "rose from 0.1 to this level 2 min ago") {
+		t.Fatalf("got:\n%s", out)
 	}
 }

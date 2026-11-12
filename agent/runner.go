@@ -65,7 +65,7 @@ type Runner struct {
 
 	// Shape, if set, rewrites a tool result before the model sees it (for
 	// example summarising long number series). Observers get both versions.
-	Shape func(tool, text string) (string, bool)
+	Shape func(tool string, input []byte, text string) (string, bool)
 
 	// Compact, if set, shapes what the model sees each turn (for example
 	// shortening old tool results). The full history stays in Result.Messages.
@@ -259,7 +259,7 @@ func (r *Runner) callTool(ctx context.Context, turn int, c Block) Block {
 	span.SetAttributes(attribute.Bool("drill.tool.is_error", out.IsError))
 	r.emit(Event{Turn: turn, Kind: "tool_result", Message: out.Text})
 	if r.Shape != nil && !out.IsError {
-		if shaped, ok := r.Shape(c.ToolName, out.Text); ok {
+		if shaped, ok := r.Shape(c.ToolName, c.Input, out.Text); ok {
 			out.Text = shaped
 			r.emit(Event{Turn: turn, Kind: "lens", Message: shaped})
 		}

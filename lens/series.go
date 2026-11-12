@@ -25,6 +25,12 @@ type series struct {
 // Series returns the rewritten text and true if text held at least one
 // multi-point series; otherwise it returns text unchanged and false.
 func Series(text string, now time.Time) (string, bool) {
+	return SeriesFor("", text, now)
+}
+
+// SeriesFor is Series with the query that produced the result named in the
+// summary, so the model cannot mix up which series came from which query.
+func SeriesFor(query, text string, now time.Time) (string, bool) {
 	var root any
 	if json.Unmarshal([]byte(text), &root) != nil {
 		return text, false
@@ -35,6 +41,9 @@ func Series(text string, now time.Time) (string, bool) {
 		return text, false
 	}
 	var b strings.Builder
+	if query != "" {
+		fmt.Fprintf(&b, "Result of %s\n", query)
+	}
 	fmt.Fprintf(&b, "%d time series (summarised by the harness; times are relative to now):\n", len(found))
 	for _, s := range found {
 		b.WriteString("- " + describe(s, now) + "\n")
@@ -104,13 +113,16 @@ func labels(m any) string {
 }
 
 func ago(ts float64, now time.Time) string {
-	d := now.Sub(time.Unix(int64(ts), 0)).Round(30 * time.Second)
-	if d < 30*time.Second {
+	m := now.Sub(time.Unix(int64(ts), 0)).Minutes()
+	if m < 0.5 {
 		return "just now"
 	}
-	return strings.TrimSuffix(strings.TrimSuffix(d.String(), "0s"), "m") + " min ago"
+	return strconv.FormatFloat(math.Round(m*2)/2, 'f', -1, 64) + " min ago"
 }
 
+// describe reports the latest change of level: the series is at its current
+// level since some point; before that it was elsewhere. Older spikes that
+// have already passed are not the story.
 func describe(s series, now time.Time) string {
 	var real []int
 	for i, v := range s.vals {
@@ -121,36 +133,31 @@ func describe(s series, now time.Time) string {
 	if len(real) == 0 {
 		return s.labels + ": no data in this window"
 	}
-	first, last := real[0], real[len(real)-1]
-	lo, hi := s.vals[first], s.vals[first]
+	lo, hi := s.vals[real[0]], s.vals[real[0]]
 	for _, i := range real {
 		lo, hi = math.Min(lo, s.vals[i]), math.Max(hi, s.vals[i])
 	}
-	out := fmt.Sprintf("%s: %s at the start of the window, %s now (min %s, max %s)",
-		s.labels, num(s.vals[first]), num(s.vals[last]), num(lo), num(hi))
-	// The biggest step between neighbouring points says when things changed.
-	best, at := 0.0, -1
-	for k := 1; k < len(real); k++ {
-		a, b := s.vals[real[k-1]], s.vals[real[k]]
-		if d := math.Abs(b - a); d > best {
-			best, at = d, real[k]
-		}
+	last := real[len(real)-1]
+	cur := s.vals[last]
+	out := fmt.Sprintf("%s: %s now (window min %s, max %s)", s.labels, num(cur), num(lo), num(hi))
+	if hi-lo <= 0.3*math.Max(math.Abs(hi), math.Abs(lo)) {
+		return out + "; steady"
 	}
-	if at >= 0 && best > 0.5*(hi-lo) && hi-lo > 0.3*math.Max(math.Abs(hi), math.Abs(lo)) {
-		prev := s.vals[real[sortSearch(real, at)-1]]
-		dir := "jumped"
-		if s.vals[at] < prev {
-			dir = "dropped"
-		}
-		out += fmt.Sprintf("; %s from %s to %s %s", dir, num(prev), num(s.vals[at]), ago(s.ts[at], now))
-	} else {
-		out += "; steady"
+	// Walk back while values stay near the current level.
+	tol := 0.25 * (hi - lo)
+	k := len(real) - 1
+	for k > 0 && math.Abs(s.vals[real[k-1]]-cur) <= tol {
+		k--
 	}
-	return out
-}
-
-func sortSearch(idx []int, v int) int {
-	return sort.SearchInts(idx, v)
+	if k == 0 {
+		return out + "; at this level for the whole window"
+	}
+	before := s.vals[real[k-1]]
+	dir := "rose"
+	if cur < before {
+		dir = "fell"
+	}
+	return out + fmt.Sprintf("; %s from %s to this level %s", dir, num(before), ago(s.ts[real[k]], now))
 }
 
 func num(v float64) string {

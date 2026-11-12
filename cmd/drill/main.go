@@ -193,7 +193,9 @@ func run(args []string) int {
 	}
 	for _, l := range cfg.Lenses {
 		if l == "series" {
-			r.Shape = func(_, text string) (string, bool) { return lens.Series(text, time.Now()) }
+			r.Shape = func(tool string, input []byte, text string) (string, bool) {
+				return lens.SeriesFor(queryOf(tool, input), text, time.Now())
+			}
 		}
 	}
 	res := r.Run(ctx, task)
@@ -427,4 +429,17 @@ func bench(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// queryOf names a tool call for lens summaries: its query expression if it
+// has one, else the tool name.
+func queryOf(tool string, input []byte) string {
+	var in map[string]any
+	_ = json.Unmarshal(input, &in)
+	for _, k := range []string{"expr", "query", "logql", "metric"} {
+		if q, ok := in[k].(string); ok && q != "" {
+			return tool + ": " + q
+		}
+	}
+	return tool
 }

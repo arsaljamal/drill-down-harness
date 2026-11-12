@@ -189,7 +189,7 @@ func TestShapeRewritesWhatTheModelSees(t *testing.T) {
 	m := &scriptModel{steps: []step{{reply: use("t1", "echo", `{"x":1}`)}, {reply: text("ok")}}}
 	var kinds []string
 	r := &Runner{Model: m, Tools: echo, Observe: func(e Event) { kinds = append(kinds, e.Kind) },
-		Shape: func(_, text string) (string, bool) { return "short", true }}
+		Shape: func(string, []byte, string) (string, bool) { return "short", true }}
 	r.Run(context.Background(), "x")
 	if got := m.seen[1].Messages[len(m.seen[1].Messages)-1].Blocks[0].Text; got != "short" {
 		t.Fatalf("model saw %q", got)
