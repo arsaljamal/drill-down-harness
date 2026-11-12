@@ -25,7 +25,22 @@ type Config struct {
 	Approvals  Approvals            `yaml:"approvals"`
 	Playbooks  string               `yaml:"playbooks"`
 	ReportGate *ReportGate          `yaml:"report_gate"`
-	Lenses     []string             `yaml:"lenses"` // tool-result rewriters: series
+	Lenses     []string             `yaml:"lenses"` // tool-result rewriters: series, logs
+	Viewer     Viewer               `yaml:"viewer"`
+}
+
+// Viewer describes the system map shown by `drill run --ui`.
+type Viewer struct {
+	Components []Component `yaml:"components"`
+}
+
+// Component is one box on the map. A tool call whose name and input match
+// Match is drawn as a check of this box; Blame matches report text that names it.
+type Component struct {
+	Name  string `yaml:"name" json:"name"`
+	Icon  string `yaml:"icon" json:"icon,omitempty"`
+	Match string `yaml:"match" json:"match"`
+	Blame string `yaml:"blame" json:"blame,omitempty"`
 }
 
 // ReportGate holds back a final answer until the run has gathered evidence.
@@ -116,8 +131,18 @@ func (c Config) Validate() error {
 		return fmt.Errorf("approvals.unsafe must be ask, deny or allow, got %q", c.Approvals.Unsafe)
 	}
 	for _, l := range c.Lenses {
-		if l != "series" {
-			return fmt.Errorf("lenses: unknown lens %q (known: series)", l)
+		if l != "series" && l != "logs" {
+			return fmt.Errorf("lenses: unknown lens %q (known: series, logs)", l)
+		}
+	}
+	for i, comp := range c.Viewer.Components {
+		if comp.Name == "" {
+			return fmt.Errorf("viewer.components[%d]: name is required", i)
+		}
+		for _, p := range []string{comp.Match, comp.Blame} {
+			if _, err := regexp.Compile(p); err != nil {
+				return fmt.Errorf("viewer.components[%d] (%s): %q is not a valid regular expression", i, comp.Name, p)
+			}
 		}
 	}
 	if g := c.ReportGate; g != nil {
@@ -194,5 +219,12 @@ approvals:
 
 # Optional: rewrite tool results so smaller models read them reliably.
 # series: long metric series become "was X, now Y, jumped N min ago".
-# lenses: [series]
+# logs: log lines become "2 min ago: config reloaded ...", newest first.
+# lenses: [series, logs]
+
+# Optional: the boxes on the live map (drill run --ui). A tool call matching
+# "match" lights up that box; report text matching "blame" marks it as blamed.
+# viewer:
+#   components:
+#     - { name: Database, icon: "🗄️", match: "db_|postgres", blame: "database|connection pool" }
 `

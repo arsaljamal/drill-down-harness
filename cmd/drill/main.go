@@ -44,6 +44,8 @@ var version = "dev"
 const usage = `usage:
   drill init                       write an example drill.yaml in this folder
   drill run [flags] "<task>"       run a task (settings from drill.yaml; flags override)
+                                   --ui 127.0.0.1:7072 to watch it live, --record run.jsonl to keep it
+  drill replay [flags] run.jsonl   play a recorded run back in the viewer
   drill bench itbench [flags]      score the harness on the public ITBench-AA SRE tasks
   drill version`
 
@@ -55,6 +57,8 @@ func main() {
 	switch os.Args[1] {
 	case "run":
 		os.Exit(run(os.Args[2:]))
+	case "replay":
+		os.Exit(replay(os.Args[2:]))
 	case "init":
 		os.Exit(initConfig())
 	case "bench":
@@ -90,6 +94,8 @@ func run(args []string) int {
 	unsafe := fset.String("unsafe", "", "ask | deny | allow; overrides approvals.unsafe")
 	traces := fset.Bool("trace", false, "print OpenTelemetry spans to stderr")
 	events := fset.String("events", "text", "progress on stderr: text (one short line per step) or json (one full JSON object per line, for UIs)")
+	uiAddr := fset.String("ui", "", `watch the investigation in a browser, e.g. --ui 127.0.0.1:7072`)
+	record := fset.String("record", "", "save every event to this file (JSON lines) for drill replay")
 	fset.Parse(args)
 
 	task := strings.Join(fset.Args(), " ")
@@ -165,6 +171,14 @@ func run(args []string) int {
 		box.Sources[name] = src
 	}
 
+	out, err := newSink(*events == "json", *record, *uiAddr)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer out.close()
+	out.emit(map[string]any{"kind": "meta", "task": task, "model": cfg.Model, "components": cfg.Viewer.Components})
+
 	r := &agent.Runner{
 		Model:      m,
 		Tools:      box,
@@ -172,16 +186,14 @@ func run(args []string) int {
 		Limits:     agent.Limits{MaxTurns: cfg.Limits.MaxTurns, MaxTokens: cfg.Limits.MaxTokens, MaxDuration: time.Duration(cfg.Limits.Timeout)},
 		ModelRetry: retry.Default(retryable),
 		Observe: func(e agent.Event) {
-			if *events == "json" {
-				msg := e.Message
-				if len(msg) > 20000 {
-					msg = msg[:20000] + " …"
-				}
-				b, _ := json.Marshal(map[string]any{"turn": e.Turn, "kind": e.Kind, "message": msg, "at": time.Now().UnixMilli()})
-				fmt.Fprintln(os.Stderr, string(b))
-				return
+			msg := e.Message
+			if len(msg) > 20000 {
+				msg = msg[:20000] + " …"
 			}
-			fmt.Fprintf(os.Stderr, "[turn %d] %-11s %s\n", e.Turn, e.Kind, oneLine(e.Message, 160))
+			out.emit(map[string]any{"turn": e.Turn, "kind": e.Kind, "message": msg})
+			if !out.json {
+				fmt.Fprintf(os.Stderr, "[turn %d] %-11s %s\n", e.Turn, e.Kind, oneLine(e.Message, 160))
+			}
 		},
 	}
 	if g := cfg.ReportGate; g != nil {
@@ -191,20 +203,31 @@ func run(args []string) int {
 		}
 		r.Gate, r.MaxNudges = gate.Check, g.MaxNudges
 	}
-	for _, l := range cfg.Lenses {
-		if l == "series" {
-			r.Shape = func(tool string, input []byte, text string) (string, bool) {
-				return lens.SeriesFor(queryOf(tool, input), text, time.Now())
+	if len(cfg.Lenses) > 0 {
+		use := map[string]bool{}
+		for _, l := range cfg.Lenses {
+			use[l] = true
+		}
+		r.Shape = func(tool string, input []byte, text string) (string, bool) {
+			if use["series"] {
+				if s, ok := lens.SeriesFor(queryOf(tool, input), text, time.Now()); ok {
+					return s, true
+				}
 			}
+			if use["logs"] {
+				return lens.Logs(text, time.Now())
+			}
+			return text, false
 		}
 	}
 	res := r.Run(ctx, task)
 
-	if *events == "json" {
-		b, _ := json.Marshal(map[string]any{"kind": "summary", "stop": res.Stop, "turns": res.Turns,
-			"input_tokens": res.Usage.InputTokens, "output_tokens": res.Usage.OutputTokens})
-		fmt.Fprintln(os.Stderr, string(b))
-	} else {
+	out.emit(map[string]any{"kind": "summary", "stop": res.Stop, "turns": res.Turns,
+		"input_tokens": res.Usage.InputTokens, "output_tokens": res.Usage.OutputTokens})
+	if res.FinalText != "" {
+		out.emit(map[string]any{"kind": "final", "message": res.FinalText})
+	}
+	if !out.json {
 		fmt.Fprintf(os.Stderr, "stop=%s turns=%d tokens=%d\n", res.Stop, res.Turns, res.Usage.Total())
 	}
 	if res.FinalText != "" {
