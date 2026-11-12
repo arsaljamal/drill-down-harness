@@ -1,0 +1,35 @@
+cmd/drill/main.go
+  s_6208c722798bf1::t_3aef8779fdcb3e 22
+  s_6208c722798bf1::t_d5a83df692edef 91,174-182,192,195-201
+  s_6208c722798bf1::t_26ccecf75779fa 186-191
+agent/gate_test.go
+  s_6208c722798bf1::t_139fbdf56532cf 1-34
+agent/runner.go
+  s_6208c722798bf1::t_139fbdf56532cf 43,61-65,127-131,170-178
+config/config_test.go
+  s_6208c722798bf1::t_26ccecf75779fa 73-85
+config/config.go
+  s_6208c722798bf1::t_26ccecf75779fa 9,27-41,117-126,181-187
+agent/gate.go
+  s_6208c722798bf1::t_139fbdf56532cf 1-68
+agent/runner_test.go
+  s_6208c722798bf1::t_0051f62c4ee823 159-185
+README.md
+  s_6208c722798bf1::t_de0d30c7bdacec 55-70,99-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dd91f89ee92448d1f45022607d00dbc49fbb9418",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
