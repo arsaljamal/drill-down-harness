@@ -40,7 +40,7 @@ type Limits struct {
 // Event is reported to the observer as the run progresses.
 type Event struct {
 	Turn    int
-	Kind    string // model_reply, tool_call, tool_result, gate, retry, stop
+	Kind    string // model_reply, tool_call, tool_result, lens, gate, retry, stop
 	Message string
 }
 
@@ -62,6 +62,10 @@ type Runner struct {
 	// MaxNudges times, default 3).
 	Gate      Gate
 	MaxNudges int
+
+	// Shape, if set, rewrites a tool result before the model sees it (for
+	// example summarising long number series). Observers get both versions.
+	Shape func(tool, text string) (string, bool)
 
 	// Compact, if set, shapes what the model sees each turn (for example
 	// shortening old tool results). The full history stays in Result.Messages.
@@ -254,6 +258,12 @@ func (r *Runner) callTool(ctx context.Context, turn int, c Block) Block {
 	}
 	span.SetAttributes(attribute.Bool("drill.tool.is_error", out.IsError))
 	r.emit(Event{Turn: turn, Kind: "tool_result", Message: out.Text})
+	if r.Shape != nil && !out.IsError {
+		if shaped, ok := r.Shape(c.ToolName, out.Text); ok {
+			out.Text = shaped
+			r.emit(Event{Turn: turn, Kind: "lens", Message: shaped})
+		}
+	}
 	return Block{Kind: BlockToolResult, ToolUseID: c.ToolUseID, Text: out.Text, IsError: out.IsError}
 }
 

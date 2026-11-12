@@ -32,6 +32,7 @@ import (
 	"github.com/arsaljamal/drill-down-harness/agent"
 	"github.com/arsaljamal/drill-down-harness/bench/itbench"
 	"github.com/arsaljamal/drill-down-harness/config"
+	"github.com/arsaljamal/drill-down-harness/lens"
 	"github.com/arsaljamal/drill-down-harness/model"
 	"github.com/arsaljamal/drill-down-harness/retry"
 	"github.com/arsaljamal/drill-down-harness/tools"
@@ -189,6 +190,11 @@ func run(args []string) int {
 			gate.Require = append(gate.Require, agent.Requirement{Name: req.Name, Pattern: regexp.MustCompile("(?i)" + req.Pattern)})
 		}
 		r.Gate, r.MaxNudges = gate.Check, g.MaxNudges
+	}
+	for _, l := range cfg.Lenses {
+		if l == "series" {
+			r.Shape = func(_, text string) (string, bool) { return lens.Series(text, time.Now()) }
+		}
 	}
 	res := r.Run(ctx, task)
 

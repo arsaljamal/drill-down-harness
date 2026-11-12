@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -181,5 +182,19 @@ func TestGateGivesUpAfterMaxNudges(t *testing.T) {
 	res := (&Runner{Model: m, Tools: echo, Gate: gate.Check, MaxNudges: 2}).Run(context.Background(), "x")
 	if res.Stop != StopDone || res.Turns != 3 {
 		t.Fatalf("got stop=%s turns=%d", res.Stop, res.Turns)
+	}
+}
+
+func TestShapeRewritesWhatTheModelSees(t *testing.T) {
+	m := &scriptModel{steps: []step{{reply: use("t1", "echo", `{"x":1}`)}, {reply: text("ok")}}}
+	var kinds []string
+	r := &Runner{Model: m, Tools: echo, Observe: func(e Event) { kinds = append(kinds, e.Kind) },
+		Shape: func(_, text string) (string, bool) { return "short", true }}
+	r.Run(context.Background(), "x")
+	if got := m.seen[1].Messages[len(m.seen[1].Messages)-1].Blocks[0].Text; got != "short" {
+		t.Fatalf("model saw %q", got)
+	}
+	if strings.Join(kinds, ",") != "model_reply,tool_call,tool_result,lens,model_reply,stop" {
+		t.Fatalf("events %v", kinds)
 	}
 }

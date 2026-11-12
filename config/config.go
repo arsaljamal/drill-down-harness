@@ -25,6 +25,7 @@ type Config struct {
 	Approvals  Approvals            `yaml:"approvals"`
 	Playbooks  string               `yaml:"playbooks"`
 	ReportGate *ReportGate          `yaml:"report_gate"`
+	Lenses     []string             `yaml:"lenses"` // tool-result rewriters: series
 }
 
 // ReportGate holds back a final answer until the run has gathered evidence.
@@ -114,6 +115,11 @@ func (c Config) Validate() error {
 	default:
 		return fmt.Errorf("approvals.unsafe must be ask, deny or allow, got %q", c.Approvals.Unsafe)
 	}
+	for _, l := range c.Lenses {
+		if l != "series" {
+			return fmt.Errorf("lenses: unknown lens %q (known: series)", l)
+		}
+	}
 	if g := c.ReportGate; g != nil {
 		for i, r := range g.Require {
 			if r.Name == "" {
@@ -185,4 +191,8 @@ approvals:
 #   require:
 #     - { name: "check recent changes in the logs", pattern: "rollout|deploy|config" }
 #   headings: ["## Root cause", "## Evidence"]
+
+# Optional: rewrite tool results so smaller models read them reliably.
+# series: long metric series become "was X, now Y, jumped N min ago".
+# lenses: [series]
 `

@@ -68,6 +68,21 @@ report_gate:
 
 An empty reply is always sent back when a gate is set. Each send-back is a `gate` event.
 
+### Lenses
+
+Lenses rewrite tool results before the model sees them. `series` turns long metric series into one
+line each, so smaller models stop misreading lists of numbers:
+
+```
+{search_mode=vector}: 0.024 at the start of the window, 2.43 now (min 0.024, max 2.43); jumped from 0.024 to 2.40 3 min ago
+```
+
+```yaml
+lenses: [series]
+```
+
+Observers (`--events json`) get both the raw result and the rewritten one (`lens` events).
+
 With more than one server, tools are named `<server>__<tool>`. Unsafe tools (no read-only or idempotent annotation) ask for a yes on the terminal; with no terminal (CI, cron) the answer is no.
 
 ## Try the harness
