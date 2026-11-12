@@ -183,6 +183,14 @@ function setTile(t,status,badge,state){
   if(state!=null)t.el.querySelector('.state').textContent=state;
 }
 
+// Log boxes keep every line seen across checks, newest first (lines start with their age).
+function addLogLines(t,lines){
+  t.lines=t.lines||[];for(const l of lines)if(!t.lines.includes(l))t.lines.push(l);
+  const age=l=>{const m=l.match(/^([\d.]+) min ago/);return m?+m[1]:(/^just now/.test(l)?0:1e9)};
+  t.lines.sort((a,b)=>age(a)-age(b));
+  setTile(t,'normal',t.lines.length+' lines','read');
+  t.el.querySelector('.find').innerHTML='<ul>'+t.lines.slice(0,5).map(l=>`<li>${esc(l)}</li>`).join('')+'</ul>';
+}
 // ---------- beam ----------
 function beamTo(t){
   const svg=$('#beam');svg.innerHTML='';if(!t)return;
@@ -291,7 +299,7 @@ function handle(ev){
     current.row.querySelector('.d').textContent='Got an answer.';
     // Without a lens, still say something useful: log lines, or that nothing was found.
     const logs=[];try{const walk=v=>{if(!v||typeof v!=='object')return;if(Array.isArray(v)){v.forEach(walk);return}if(typeof v.line==='string')logs.push(v.line);else Object.values(v).forEach(walk)};walk(JSON.parse(ev.message))}catch(e){}
-    if(logs.length){setTile(t,'normal',logs.length+' lines','read');t.el.querySelector('.find').innerHTML='<ul>'+logs.slice(0,4).map(l=>`<li>${esc(l)}</li>`).join('')+'</ul>';current.row.querySelector('.d').textContent=`Found ${logs.length} line(s), e.g. “${logs[0].slice(0,80)}”`}
+    if(logs.length){addLogLines(t,logs);current.row.querySelector('.d').textContent=`Found ${logs.length} line(s), e.g. “${logs[0].slice(0,80)}”`}
     else if(!vals.length){setTile(t,'normal','done','checked');current.row.querySelector('.d').textContent=ev.message.length<120?ev.message:'Got an answer (open details).'}
     else if(t.status==='checking'){setTile(t,'normal','checked','checked')}
     current.row.querySelector('pre').textContent=prettyQuery(current.tool,current.input)+'\n\n'+ev.message.slice(0,4000);
@@ -300,7 +308,7 @@ function handle(ev){
     if(!current)break;const t=current.tile,f=finding(ev.message);if(!f)break;
     const d=current.row.querySelector('.d');
     if(f.kind==='logs'){
-      setTile(t,'normal',f.lines.length+' lines','read');t.el.querySelector('.find').innerHTML='<ul>'+f.lines.slice(0,4).map(l=>`<li>${esc(l)}</li>`).join('')+'</ul>';
+      addLogLines(t,f.lines);
       d.innerHTML=`Found ${f.lines.length} line(s). Newest: <b>${esc(f.lines[0]||'')}</b>`;current.row.className='ev good';
       caption(`Read the logs: newest is “${esc((f.lines[0]||'').slice(0,90))}”`,false);
     }else if(f.kind==='changed'){
