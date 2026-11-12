@@ -52,6 +52,22 @@ approvals:
   unsafe: ask     # ask | deny | allow
 ```
 
+### Report gate
+
+Small models like to conclude early, or reply with nothing. A `report_gate` sends the final answer
+back (up to `max_nudges` times) until the run has done the checks you list:
+
+```yaml
+report_gate:
+  min_tool_calls: 5
+  require:
+    - { name: "break the symptom down by component", pattern: "by ?\\(|db_client|embed" }
+    - { name: "look for change events in the logs", pattern: "query_loki_logs.*(rollout|config)" }
+  headings: ["## Root cause", "## Evidence"]
+```
+
+An empty reply is always sent back when a gate is set. Each send-back is a `gate` event.
+
 With more than one server, tools are named `<server>__<tool>`. Unsafe tools (no read-only or idempotent annotation) ask for a yes on the terminal; with no terminal (CI, cron) the answer is no.
 
 ## Try the harness
@@ -79,6 +95,10 @@ go run ./cmd/drill run --model anthropic/claude-sonnet-5-5 --mcp "go run ./examp
 | `groq/` | Groq | `GROQ_API_KEY` |
 | `ollama/`, `lmstudio/` | a local server | none |
 | `compatible/` | any OpenAI-compatible server, with `--base-url` | `--api-key-env` if needed |
+
+Add `--events json` to get every step (model replies, tool calls with full results, gate send-backs,
+a final summary) as one JSON object per line on stderr, for dashboards and replays.
+[aisle's control room](https://github.com/arsaljamal/aisle) uses it to show investigations live.
 
 Add `--trace` to print OpenTelemetry spans for the run, each turn, each model call and each tool call.
 

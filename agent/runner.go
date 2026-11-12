@@ -40,7 +40,7 @@ type Limits struct {
 // Event is reported to the observer as the run progresses.
 type Event struct {
 	Turn    int
-	Kind    string // model_reply, tool_call, tool_result, retry, stop
+	Kind    string // model_reply, tool_call, tool_result, gate, retry, stop
 	Message string
 }
 
@@ -57,6 +57,11 @@ type Runner struct {
 
 	// Observe, if set, receives progress events.
 	Observe func(Event)
+
+	// Gate, if set, can send a final answer back for more work (at most
+	// MaxNudges times, default 3).
+	Gate      Gate
+	MaxNudges int
 
 	// Compact, if set, shapes what the model sees each turn (for example
 	// shortening old tool results). The full history stays in Result.Messages.
@@ -119,7 +124,11 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 	}
 
 	var lastCall []byte
-	repeats := 0
+	repeats, nudges := 0, 0
+	maxNudges := r.MaxNudges
+	if maxNudges <= 0 {
+		maxNudges = 3
+	}
 
 	for {
 		if stop, ok := r.ctxStop(ctx); ok {
@@ -158,6 +167,15 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 		r.emit(Event{Turn: res.Turns, Kind: "model_reply", Message: summarize(reply.Blocks)})
 
 		calls := toolCalls(reply.Blocks)
+		if len(calls) == 0 && r.Gate != nil && nudges < maxNudges {
+			if nudge := r.Gate(res.Messages, textOf(reply.Blocks)); nudge != "" {
+				nudges++
+				r.emit(Event{Turn: res.Turns, Kind: "gate", Message: nudge})
+				res.Messages = append(res.Messages, Message{Role: RoleUser, Blocks: []Block{{Kind: BlockText, Text: nudge}}})
+				turnSpan.End()
+				continue
+			}
+		}
 		if len(calls) == 0 {
 			res.FinalText = textOf(reply.Blocks)
 			res.Stop = StopDone

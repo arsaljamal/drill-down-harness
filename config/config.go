@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"time"
 
@@ -23,6 +24,21 @@ type Config struct {
 	MCPServers map[string]MCPServer `yaml:"mcp_servers"`
 	Approvals  Approvals            `yaml:"approvals"`
 	Playbooks  string               `yaml:"playbooks"`
+	ReportGate *ReportGate          `yaml:"report_gate"`
+}
+
+// ReportGate holds back a final answer until the run has gathered evidence.
+type ReportGate struct {
+	MinToolCalls int           `yaml:"min_tool_calls"`
+	Require      []Requirement `yaml:"require"`
+	Headings     []string      `yaml:"headings"`
+	MaxNudges    int           `yaml:"max_nudges"`
+}
+
+// Requirement: some tool call (name + input) must match Pattern, a regular expression.
+type Requirement struct {
+	Name    string `yaml:"name"`
+	Pattern string `yaml:"pattern"`
 }
 
 // Limits bound a run.
@@ -98,6 +114,16 @@ func (c Config) Validate() error {
 	default:
 		return fmt.Errorf("approvals.unsafe must be ask, deny or allow, got %q", c.Approvals.Unsafe)
 	}
+	if g := c.ReportGate; g != nil {
+		for i, r := range g.Require {
+			if r.Name == "" {
+				return fmt.Errorf("report_gate.require[%d]: name is required", i)
+			}
+			if _, err := regexp.Compile(r.Pattern); err != nil || r.Pattern == "" {
+				return fmt.Errorf("report_gate.require[%d] (%s): pattern must be a valid regular expression", i, r.Name)
+			}
+		}
+	}
 	for _, name := range c.ServerNames() {
 		s := c.MCPServers[name]
 		if (s.Command == "") == (s.URL == "") {
@@ -152,4 +178,11 @@ mcp_servers:
 
 approvals:
   unsafe: ask   # ask: confirm each unsafe tool call; deny: never run them; allow: run them (not recommended)
+
+# Optional: send a final answer back until the run has gathered evidence.
+# report_gate:
+#   min_tool_calls: 5
+#   require:
+#     - { name: "check recent changes in the logs", pattern: "rollout|deploy|config" }
+#   headings: ["## Root cause", "## Evidence"]
 `

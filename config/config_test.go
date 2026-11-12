@@ -70,3 +70,16 @@ func TestServerNamesSorted(t *testing.T) {
 		t.Fatalf("got %s", got)
 	}
 }
+
+func TestReportGate(t *testing.T) {
+	cfg, err := Load(write(t, "version: 1\nreport_gate:\n  min_tool_calls: 4\n  require:\n    - { name: logs, pattern: \"rollout|config\" }\n  headings: [\"## Root cause\"]\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g := cfg.ReportGate; g == nil || g.MinToolCalls != 4 || g.Require[0].Name != "logs" {
+		t.Fatalf("got %+v", cfg.ReportGate)
+	}
+	if _, err := Load(write(t, "version: 1\nreport_gate:\n  require:\n    - { name: x, pattern: \"(\" }\n")); err == nil {
+		t.Fatal("bad pattern accepted")
+	}
+}

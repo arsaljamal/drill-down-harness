@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -87,6 +88,7 @@ func run(args []string) int {
 	server := fset.String("mcp", "", "command for one extra MCP server over stdio, named \"cli\"")
 	unsafe := fset.String("unsafe", "", "ask | deny | allow; overrides approvals.unsafe")
 	traces := fset.Bool("trace", false, "print OpenTelemetry spans to stderr")
+	events := fset.String("events", "text", "progress on stderr: text (one short line per step) or json (one full JSON object per line, for UIs)")
 	fset.Parse(args)
 
 	task := strings.Join(fset.Args(), " ")
@@ -169,12 +171,34 @@ func run(args []string) int {
 		Limits:     agent.Limits{MaxTurns: cfg.Limits.MaxTurns, MaxTokens: cfg.Limits.MaxTokens, MaxDuration: time.Duration(cfg.Limits.Timeout)},
 		ModelRetry: retry.Default(retryable),
 		Observe: func(e agent.Event) {
+			if *events == "json" {
+				msg := e.Message
+				if len(msg) > 20000 {
+					msg = msg[:20000] + " …"
+				}
+				b, _ := json.Marshal(map[string]any{"turn": e.Turn, "kind": e.Kind, "message": msg, "at": time.Now().UnixMilli()})
+				fmt.Fprintln(os.Stderr, string(b))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[turn %d] %-11s %s\n", e.Turn, e.Kind, oneLine(e.Message, 160))
 		},
 	}
+	if g := cfg.ReportGate; g != nil {
+		gate := agent.ReportGate{MinToolCalls: g.MinToolCalls, Headings: g.Headings}
+		for _, req := range g.Require {
+			gate.Require = append(gate.Require, agent.Requirement{Name: req.Name, Pattern: regexp.MustCompile("(?i)" + req.Pattern)})
+		}
+		r.Gate, r.MaxNudges = gate.Check, g.MaxNudges
+	}
 	res := r.Run(ctx, task)
 
-	fmt.Fprintf(os.Stderr, "stop=%s turns=%d tokens=%d\n", res.Stop, res.Turns, res.Usage.Total())
+	if *events == "json" {
+		b, _ := json.Marshal(map[string]any{"kind": "summary", "stop": res.Stop, "turns": res.Turns,
+			"input_tokens": res.Usage.InputTokens, "output_tokens": res.Usage.OutputTokens})
+		fmt.Fprintln(os.Stderr, string(b))
+	} else {
+		fmt.Fprintf(os.Stderr, "stop=%s turns=%d tokens=%d\n", res.Stop, res.Turns, res.Usage.Total())
+	}
 	if res.FinalText != "" {
 		fmt.Println(res.FinalText)
 	}

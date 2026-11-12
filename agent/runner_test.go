@@ -156,3 +156,30 @@ func TestToolErrorGoesBackToModel(t *testing.T) {
 		t.Fatalf("want error tool result, got %+v", got)
 	}
 }
+
+func TestGateSendsEarlyReportBack(t *testing.T) {
+	m := &scriptModel{steps: []step{
+		{reply: text("probably the database")}, // too early: no evidence
+		{reply: use("t1", "echo", `{"q":"rollout"}`)},
+		{reply: text("## Root cause\nthe rollout")},
+	}}
+	gate := ReportGate{MinToolCalls: 1, Headings: []string{"## Root cause"}}
+	var kinds []string
+	r := &Runner{Model: m, Tools: echo, Gate: gate.Check, Observe: func(e Event) { kinds = append(kinds, e.Kind) }}
+	res := r.Run(context.Background(), "investigate")
+	if res.Stop != StopDone || res.FinalText != "## Root cause\nthe rollout" || res.Turns != 3 {
+		t.Fatalf("got stop=%s text=%q turns=%d", res.Stop, res.FinalText, res.Turns)
+	}
+	if kinds[1] != "gate" {
+		t.Fatalf("want a gate event after the first reply, got %v", kinds)
+	}
+}
+
+func TestGateGivesUpAfterMaxNudges(t *testing.T) {
+	m := &scriptModel{steps: []step{{reply: text("")}, {reply: text("")}, {reply: text("")}}}
+	gate := ReportGate{}
+	res := (&Runner{Model: m, Tools: echo, Gate: gate.Check, MaxNudges: 2}).Run(context.Background(), "x")
+	if res.Stop != StopDone || res.Turns != 3 {
+		t.Fatalf("got stop=%s turns=%d", res.Stop, res.Turns)
+	}
+}
