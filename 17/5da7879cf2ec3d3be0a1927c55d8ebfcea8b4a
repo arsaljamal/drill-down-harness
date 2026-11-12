@@ -1,0 +1,24 @@
+cmd/drill/otel.go
+  s_6208c722798bf1::t_b398ff7d2302ae 5-6,24-26,49-53
+  s_6208c722798bf1::t_2ca36594bf0e3c 54
+deploy/grafana/drill.json
+  s_6208c722798bf1::t_b398ff7d2302ae 72,129,186,235,288,337,344,383,430,439,448,486,533,598,636
+deploy/grafana/dashboard.py
+  s_6208c722798bf1::t_b398ff7d2302ae 35,37,40,42,44,46,51,53-54,59-61,69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "175da7879cf2ec3d3be0a1927c55d8ebfcea8b4a",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
