@@ -24,7 +24,6 @@ def ts(title, exprs, x, desc, unit="short", w=12, kind="timeseries", stack=False
             "targets": [{"datasource": P, "expr": e, "legendFormat": l, "refId": chr(65 + i)} for i, (e, l) in enumerate(exprs)]}
 
 
-W = "[$__range]"
 panels.append({"type": "text", "title": "", "gridPos": {"x": 0, "y": y, "w": 24, "h": 3},
                "options": {"mode": "markdown", "content":
                            "### How the investigator is doing\n"
@@ -33,33 +32,33 @@ panels.append({"type": "text", "title": "", "gridPos": {"x": 0, "y": y, "w": 24,
                            "Click a run in *Recent runs* (bottom) to see its full timeline."}})
 y += 3
 panels += [
-    stat("Runs", f"sum(increase(drill_runs_total{W}))", 0, "none", [{"color": "blue", "value": None}],
+    stat("Runs", "sum(max_over_time(drill_runs_total[$__range]))", 0, "none", [{"color": "blue", "value": None}],
          "Investigations finished in the selected time range."),
-    stat("Finished normally", f'sum(increase(drill_runs_total{{stop="done"}}{W})) / sum(increase(drill_runs_total{W}))', 4, "percentunit",
+    stat("Finished normally", '(sum(max_over_time(drill_runs_total{stop="done"}[$__range])) or vector(0)) / sum(max_over_time(drill_runs_total[$__range]))', 4, "percentunit",
          [{"color": R, "value": None}, {"color": A, "value": .7}, {"color": G, "value": .9}],
          "Share of runs that ended with a report, not a limit (time, turns, tokens) or an error."),
-    stat("Typical run time", f"histogram_quantile(0.5, sum by (le) (increase(drill_run_duration_seconds_bucket{W})))", 8, "s",
+    stat("Typical run time", "histogram_quantile(0.5, sum by (le) (max_over_time(drill_run_duration_seconds_bucket[$__range])))", 8, "s",
          [{"color": G, "value": None}, {"color": A, "value": 180}, {"color": R, "value": 600}], "Median minutes from page to report."),
-    stat("Checks per run", f"sum(increase(drill_tool_calls_total{W})) / sum(increase(drill_runs_total{W}))", 12, "none",
+    stat("Checks per run", "sum(max_over_time(drill_tool_calls_total[$__range])) / sum(max_over_time(drill_runs_total[$__range]))", 12, "none",
          [{"color": "blue", "value": None}], "Average number of tool calls (queries) per investigation."),
-    stat("Sent back", f"sum(increase(drill_gate_sendbacks_total{W})) or vector(0)", 16, "none",
+    stat("Sent back", "sum(max_over_time(drill_gate_sendbacks_total[$__range])) or vector(0)", 16, "none",
          [{"color": G, "value": None}, {"color": A, "value": 1}], "Reports the harness refused because the evidence was not there yet."),
-    stat("Tokens per run", f"sum(increase(drill_tokens_total{W})) / sum(increase(drill_runs_total{W}))", 20, "short",
+    stat("Tokens per run", "sum(max_over_time(drill_tokens_total[$__range])) / sum(max_over_time(drill_runs_total[$__range]))", 20, "short",
          [{"color": "blue", "value": None}], "Model input + output tokens per investigation (cost driver for hosted models)."),
 ]
 y += 5
 panels += [
-    ts("How runs ended", [("sum by (stop) (increase(drill_runs_total[5m]))", "{{stop}}")], 0,
+    ts("How runs ended (runs active in the last 10 min)", [("sum by (stop) (max_over_time(drill_runs_total[10m]))", "{{stop}}")], 0,
        "done = wrote a report. Anything else means it hit a limit or failed.", kind="timeseries", stack=True),
-    ts("Run time (p50 / p95)", [("histogram_quantile(0.5, sum by (le) (rate(drill_run_duration_seconds_bucket[10m])))", "p50"),
-                               ("histogram_quantile(0.95, sum by (le) (rate(drill_run_duration_seconds_bucket[10m])))", "p95")], 12,
+    ts("Run time (p50 / p95)", [("histogram_quantile(0.5, sum by (le) (max_over_time(drill_run_duration_seconds_bucket[30m])))", "p50"),
+                               ("histogram_quantile(0.95, sum by (le) (max_over_time(drill_run_duration_seconds_bucket[30m])))", "p95")], 12,
        "How long an investigation takes, page to report.", unit="s"),
 ]
 y += 8
 panels += [
-    ts("Which tools it uses", [("sum by (tool) (increase(drill_tool_calls_total[5m]))", "{{tool}}")], 0,
-       "Tool calls per 5 minutes, by tool.", stack=True),
-    ts("Tool errors", [("sum by (tool) (increase(drill_tool_calls_total{outcome=\"error\"}[5m]))", "{{tool}}")], 12,
+    ts("Which tools it uses", [("sum by (tool) (max_over_time(drill_tool_calls_total[10m]))", "{{tool}}")], 0,
+       "Tool calls by runs active in the last 10 minutes, by tool.", stack=True),
+    ts("Tool errors", [("sum by (tool) (max_over_time(drill_tool_calls_total{outcome=\"error\"}[10m]))", "{{tool}}")], 12,
        "Failed tool calls (bad queries, timeouts). The model sees the error and can retry."),
 ]
 y += 8
@@ -67,7 +66,7 @@ panels += [
     ts("Slowest parts (p95)", [("histogram_quantile(0.95, sum by (le) (rate(drill_model_duration_seconds_bucket[10m])))", "model thinking"),
                               ("histogram_quantile(0.95, sum by (le, tool) (rate(drill_tool_duration_seconds_bucket[10m])))", "tool: {{tool}}")], 0,
        "Where time goes: waiting for the model, or for tools.", unit="s"),
-    ts("Tokens", [("sum by (kind) (increase(drill_tokens_total[5m]))", "{{kind}}")], 12, "Model tokens per 5 minutes.", stack=True),
+    ts("Tokens", [("sum by (kind) (max_over_time(drill_tokens_total[10m]))", "{{kind}}")], 12, "Model tokens used by runs active in the last 10 minutes.", stack=True),
 ]
 y += 8
 panels.append({"type": "table", "title": "Recent runs (click one for its timeline)", "datasource": T,

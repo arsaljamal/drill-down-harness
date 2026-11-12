@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -19,7 +21,9 @@ import (
 // Grafana, Tempo, Jaeger, Datadog or any OpenTelemetry backend.
 func startOTLP(ctx context.Context) (func(), error) {
 	res, err := resource.Merge(resource.Default(), resource.NewWithAttributes(semconv.SchemaURL,
-		semconv.ServiceName("drill-down-harness"), semconv.ServiceVersion(version)))
+		semconv.ServiceName("drill-down-harness"), semconv.ServiceVersion(version),
+		// Each run is its own short-lived process; a unique instance keeps runs apart in Prometheus.
+		semconv.ServiceInstanceID(runID())))
 	if err != nil {
 		return nil, err
 	}
@@ -41,4 +45,10 @@ func startOTLP(ctx context.Context) (func(), error) {
 		defer cancel()
 		_ = errors.Join(tp.Shutdown(c), mp.Shutdown(c)) // flushes the last run
 	}, nil
+}
+
+func runID() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }

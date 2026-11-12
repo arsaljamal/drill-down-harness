@@ -69,7 +69,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum(increase(drill_runs_total[$__range]))",
+     "expr": "sum(max_over_time(drill_runs_total[$__range]))",
      "refId": "A"
     }
    ]
@@ -126,7 +126,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum(increase(drill_runs_total{stop=\"done\"}[$__range])) / sum(increase(drill_runs_total[$__range]))",
+     "expr": "(sum(max_over_time(drill_runs_total{stop=\"done\"}[$__range])) or vector(0)) / sum(max_over_time(drill_runs_total[$__range]))",
      "refId": "A"
     }
    ]
@@ -183,7 +183,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "histogram_quantile(0.5, sum by (le) (increase(drill_run_duration_seconds_bucket[$__range])))",
+     "expr": "histogram_quantile(0.5, sum by (le) (max_over_time(drill_run_duration_seconds_bucket[$__range])))",
      "refId": "A"
     }
    ]
@@ -232,7 +232,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum(increase(drill_tool_calls_total[$__range])) / sum(increase(drill_runs_total[$__range]))",
+     "expr": "sum(max_over_time(drill_tool_calls_total[$__range])) / sum(max_over_time(drill_runs_total[$__range]))",
      "refId": "A"
     }
    ]
@@ -285,7 +285,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum(increase(drill_gate_sendbacks_total[$__range])) or vector(0)",
+     "expr": "sum(max_over_time(drill_gate_sendbacks_total[$__range])) or vector(0)",
      "refId": "A"
     }
    ]
@@ -334,14 +334,14 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum(increase(drill_tokens_total[$__range])) / sum(increase(drill_runs_total[$__range]))",
+     "expr": "sum(max_over_time(drill_tokens_total[$__range])) / sum(max_over_time(drill_runs_total[$__range]))",
      "refId": "A"
     }
    ]
   },
   {
    "type": "timeseries",
-   "title": "How runs ended",
+   "title": "How runs ended (runs active in the last 10 min)",
    "description": "done = wrote a report. Anything else means it hit a limit or failed.",
    "datasource": {
     "type": "prometheus",
@@ -380,7 +380,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum by (stop) (increase(drill_runs_total[5m]))",
+     "expr": "sum by (stop) (max_over_time(drill_runs_total[10m]))",
      "legendFormat": "{{stop}}",
      "refId": "A"
     }
@@ -427,7 +427,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "histogram_quantile(0.5, sum by (le) (rate(drill_run_duration_seconds_bucket[10m])))",
+     "expr": "histogram_quantile(0.5, sum by (le) (max_over_time(drill_run_duration_seconds_bucket[30m])))",
      "legendFormat": "p50",
      "refId": "A"
     },
@@ -436,7 +436,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "histogram_quantile(0.95, sum by (le) (rate(drill_run_duration_seconds_bucket[10m])))",
+     "expr": "histogram_quantile(0.95, sum by (le) (max_over_time(drill_run_duration_seconds_bucket[30m])))",
      "legendFormat": "p95",
      "refId": "B"
     }
@@ -445,7 +445,7 @@
   {
    "type": "timeseries",
    "title": "Which tools it uses",
-   "description": "Tool calls per 5 minutes, by tool.",
+   "description": "Tool calls by runs active in the last 10 minutes, by tool.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -483,7 +483,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum by (tool) (increase(drill_tool_calls_total[5m]))",
+     "expr": "sum by (tool) (max_over_time(drill_tool_calls_total[10m]))",
      "legendFormat": "{{tool}}",
      "refId": "A"
     }
@@ -530,7 +530,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum by (tool) (increase(drill_tool_calls_total{outcome=\"error\"}[5m]))",
+     "expr": "sum by (tool) (max_over_time(drill_tool_calls_total{outcome=\"error\"}[10m]))",
      "legendFormat": "{{tool}}",
      "refId": "A"
     }
@@ -595,7 +595,7 @@
   {
    "type": "timeseries",
    "title": "Tokens",
-   "description": "Model tokens per 5 minutes.",
+   "description": "Model tokens used by runs active in the last 10 minutes.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -633,7 +633,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum by (kind) (increase(drill_tokens_total[5m]))",
+     "expr": "sum by (kind) (max_over_time(drill_tokens_total[10m]))",
      "legendFormat": "{{kind}}",
      "refId": "A"
     }
