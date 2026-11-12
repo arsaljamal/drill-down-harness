@@ -104,7 +104,9 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 	}
 
 	ctx, span := tracer.Start(ctx, "drill.run")
+	started := time.Now()
 	defer func() {
+		recordRun(ctx, res, time.Since(started))
 		span.SetAttributes(
 			attribute.String("drill.stop_reason", string(res.Stop)),
 			attribute.Int("drill.turns", res.Turns),
@@ -174,6 +176,7 @@ func (r *Runner) Run(ctx context.Context, task string) (res Result) {
 		if len(calls) == 0 && r.Gate != nil && nudges < maxNudges {
 			if nudge := r.Gate(res.Messages, textOf(reply.Blocks)); nudge != "" {
 				nudges++
+				meters().gate.Add(ctx, 1)
 				r.emit(Event{Turn: res.Turns, Kind: "gate", Message: nudge})
 				res.Messages = append(res.Messages, Message{Role: RoleUser, Blocks: []Block{{Kind: BlockText, Text: nudge}}})
 				turnSpan.End()
@@ -224,6 +227,8 @@ func (r *Runner) generate(ctx context.Context, req ModelRequest) (ModelReply, er
 	}
 
 	var reply ModelReply
+	started := time.Now()
+	defer func() { meters().modelSecs.Record(ctx, time.Since(started).Seconds()) }()
 	err := retry.Do(ctx, policy, func(ctx context.Context) error {
 		var err error
 		reply, err = r.Model.Generate(ctx, req)
@@ -250,7 +255,9 @@ func (r *Runner) callTool(ctx context.Context, turn int, c Block) Block {
 	defer span.End()
 
 	r.emit(Event{Turn: turn, Kind: "tool_call", Message: fmt.Sprintf("%s %s", c.ToolName, c.Input)})
+	started := time.Now()
 	out, err := r.Tools.Call(ctx, c.ToolName, c.Input)
+	defer func() { recordTool(ctx, c.ToolName, out.IsError, time.Since(started)) }()
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "tool call failed")

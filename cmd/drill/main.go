@@ -96,6 +96,7 @@ func run(args []string) int {
 	events := fset.String("events", "text", "progress on stderr: text (one short line per step) or json (one full JSON object per line, for UIs)")
 	uiAddr := fset.String("ui", "", `watch the investigation in a browser, e.g. --ui 127.0.0.1:7072`)
 	record := fset.String("record", "", "save every event to this file (JSON lines) for drill replay")
+	otlp := fset.Bool("otlp", false, "send the harness's own traces and metrics over OTLP (OTEL_EXPORTER_OTLP_ENDPOINT, default localhost:4317)")
 	fset.Parse(args)
 
 	task := strings.Join(fset.Args(), " ")
@@ -149,6 +150,14 @@ func run(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
+	if *otlp {
+		shutdown, err := startOTLP(ctx)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "otlp:", err)
+			return 1
+		}
+		defer shutdown()
+	}
 	if *traces {
 		exp, err := stdouttrace.New(stdouttrace.WithWriter(os.Stderr), stdouttrace.WithPrettyPrint())
 		if err != nil {

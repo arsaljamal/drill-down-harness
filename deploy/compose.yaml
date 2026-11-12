@@ -1,0 +1,14 @@
+# Grafana with Prometheus, Tempo and Loki behind one OpenTelemetry endpoint,
+# preloaded with the Drill Down Harness dashboard.
+#   docker compose -f deploy/compose.yaml up -d
+#   drill run --otlp ...        then open http://localhost:3000/d/drill
+name: drill
+services:
+  observability:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "127.0.0.1:3000:3000" # Grafana
+      - "127.0.0.1:4317:4317" # OTLP gRPC
+    volumes:
+      - ./grafana/provider.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/drill.yaml:ro
+      - ./grafana/drill.json:/otel-lgtm/drill-dashboards/drill.json:ro

@@ -192,7 +192,7 @@ function beamTo(t){
   svg.setAttribute('width',m.width);svg.setAttribute('height',m.height);
   svg.innerHTML=`<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/><circle r="5"><animateMotion dur="1s" repeatCount="indefinite" path="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/></circle>`;
 }
-addEventListener('resize',()=>beamTo(current&&current.tile));
+addEventListener('resize',()=>{if(!finished)beamTo(current&&current.tile)});
 
 // ---------- reading results ----------
 function seriesOf(text){
