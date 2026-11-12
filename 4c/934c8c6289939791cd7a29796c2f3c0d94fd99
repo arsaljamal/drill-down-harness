@@ -1,0 +1,40 @@
+agent/metrics.go
+  s_6208c722798bf1::t_dfda4fa24222b8 1-65
+deploy/grafana/drill.json
+  s_6208c722798bf1::t_587f8f8fd6db1c 1-669
+deploy/grafana/provider.yaml
+  s_6208c722798bf1::t_587f8f8fd6db1c 1-6
+go.mod
+  s_6208c722798bf1::t_635593c4d297b3 3,8-15,22-24,28,30,40-43,45-49,51-54
+cmd/drill/otel.go
+  s_6208c722798bf1::t_635593c4d297b3 1-13,15-44
+  s_6208c722798bf1::t_5d0d06210d4874 14
+cmd/drill/main.go
+  s_6208c722798bf1::t_635593c4d297b3 99,153-160
+deploy/grafana/dashboard.py
+  s_6208c722798bf1::t_587f8f8fd6db1c 1-81
+deploy/compose.yaml
+  s_6208c722798bf1::t_587f8f8fd6db1c 1-14
+agent/runner.go
+  s_6208c722798bf1::t_dfda4fa24222b8 107,109,179,230-231,258,260
+viewer/ui/index.html
+  s_6208c722798bf1::t_6c74a4124ec3c3 195
+go.sum
+  s_6208c722798bf1::t_1abc4c4c45f1bd 1-2,5-6,41-45,48-49,51-52,65-66,69-74,85-86,93-94,109-138,141-142,145-156,159-162,165-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4c934c8c6289939791cd7a29796c2f3c0d94fd99",
+  "prompts": {},
+  "sessions": {
+    "s_6208c722798bf1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8d29aa3a-3311-4db4-ae6c-98b4ce891645",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Arsal Jamal <arsaljamal2348@gmail.com>"
+    }
+  }
+}
