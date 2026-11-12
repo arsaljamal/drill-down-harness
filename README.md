@@ -6,6 +6,28 @@ Underneath is a reliability-first agent harness in Go: any model, tools through 
 
 > Status: **v0.1** (harness core) works today. The investigator is being built on top. See [docs/design.md](docs/design.md) for the full design and roadmap.
 
+## Watch it work
+
+![A Drill Down investigation, replayed in the viewer](docs/img/viewer.gif)
+
+```sh
+drill run --ui 127.0.0.1:7072 --record run.jsonl "PAGE: search latency above 1s"   # watch live
+drill replay --speed 4 run.jsonl                                                    # play it back later
+```
+
+The viewer shows the system as a map. When the investigator checks a part, a beam goes to it; the part
+turns **green** if normal or **red** with what changed ("rose from 0.02 s to 2.4 s, 3 min ago"). Next to it,
+each step is told in plain words, with the exact query and data one click away. You see when the harness
+sends a report back for lack of evidence, which part the report blames, and whether it ever checked it.
+The boxes come from your `drill.yaml` (`viewer.components`); without them, tools are grouped by type.
+
+The harness also monitors itself: `--otlp` sends its traces and metrics (runs, outcomes, time, turns,
+tokens, tool calls and errors, send-backs) to any OpenTelemetry backend. `deploy/` has a ready Grafana
+with a **Drill Down Harness** dashboard: `docker compose -f deploy/compose.yaml up -d`, then
+http://localhost:3000/d/drill.
+
+See it investigate a real service, with results: [aisle](https://github.com/arsaljamal/aisle).
+
 ## How an investigation runs
 
 | Phase | What happens |

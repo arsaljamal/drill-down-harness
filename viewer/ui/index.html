@@ -71,6 +71,7 @@ h2{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute
 @keyframes shake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .tile .ribbon{position:absolute;top:-11px;right:10px;background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;animation:drop .5s ease}
 @keyframes drop{from{transform:translateY(-10px);opacity:0}}
+.tile .ribbon.unchecked{background:var(--amber)}
 .tile .badge{font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px;white-space:nowrap;align-self:flex-start}
 .normal .badge{background:var(--green);color:#fff}.changed .badge{background:var(--red);color:#fff}.failed .badge{background:var(--amber);color:#fff}.checking .badge{background:var(--blue);color:#fff}
 .tile ul{margin:6px 0 0;padding-left:16px;font-size:12px}
@@ -337,7 +338,7 @@ function rootCause(text){const m=text.match(/##\s*root cause\s*\n([\s\S]*?)(\n##
 function showReport(text){
   $('#report').style.display='block';$('#report-body').innerHTML=md(text);
   const rc=rootCause(text);
-  if(rc){for(const t of Object.values(tiles)){const b=t.c.blame;if(b){try{if(new RegExp(b,'i').test(rc)){const r=document.createElement('div');r.className='ribbon';r.textContent='blamed';t.el.appendChild(r)}}catch(e){}}}}
+  if(rc){for(const t of Object.values(tiles)){const b=t.c.blame;if(b){try{if(new RegExp(b,'i').test(rc)){const r=document.createElement('div');r.className='ribbon'+(t.status==='idle'?' unchecked':'');r.textContent=t.status==='idle'?'blamed, never checked':'blamed';t.el.appendChild(r)}}catch(e){}}}}
   story('good','📝','Report accepted','Scroll down to read it.');
 }
 function showVerdict(v){
